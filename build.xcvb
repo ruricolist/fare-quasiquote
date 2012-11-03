@@ -1,0 +1,8 @@
+#+xcvb
+(module
+ (:fullname "fare-quasiquote"
+  :depends-on
+  ("packages"
+   "quasiquote" "pp-quasiquote" "quasiquote-readtable")
+  :build-depends-on ("/fare-utils")
+  :supersedes-asdf ("fare-quasiquote" "fare-quasiquote-readtable")))
