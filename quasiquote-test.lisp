@@ -2,6 +2,11 @@
 
 (in-package :fare-quasiquote)
 
+(hu.dwim.stefil:defsuite*
+    (fare-quasiquote-test
+     :in hu.dwim.stefil:root-suite
+     :documentation "All fare-quasiquote tests"))
+
 ;; This version of princ allows one to see
 ;; inside of your implementation's version of quasiquoted expressions...
 
