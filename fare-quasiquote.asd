@@ -5,6 +5,7 @@
 (defsystem :fare-quasiquote
   :description "Portable, hackable, matchable implementation of quasiquote"
   :long-description "fare-quasiquote implements a portable quasiquote that you can control."
+  :license "MIT"
   :depends-on (:fare-utils)
   :serial t
   :components
@@ -15,5 +16,4 @@
 (defmethod perform ((op test-op) (sys (eql (find-system :fare-quasiquote))))
   (format t "~&Testing fare-quasiquote")
   (load-system :fare-quasiquote-test)
-  ;;(funcall (find-symbol* :fare-quasiquote-test :fare-quasiquote)) ;;---*** why doesn't that work???
   (funcall (find-symbol* :test-quasiquote :fare-quasiquote)))

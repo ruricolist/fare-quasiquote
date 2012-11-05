@@ -2,7 +2,7 @@
 ;;; optima implementation for fare-quasiquote
 ;;; Copyright (c) 2002-2012 Fahree Wreido <fare@tunes.org>
 
-#+xcvb (module (:depends-on ("quasiquote" "/fare-matcher")))
+#+xcvb (module (:depends-on ("quasiquote" (:asdf "optima"))))
 
 (in-package :fare-quasiquote)
 
