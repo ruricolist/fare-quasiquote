@@ -11,9 +11,5 @@
   :components
   ((:file "packages")
    (:file "quasiquote" :depends-on ("packages"))
-   (:file "pp-quasiquote" :depends-on ("quasiquote"))))
-
-(defmethod perform ((op test-op) (sys (eql (find-system :fare-quasiquote))))
-  (format t "~&Testing fare-quasiquote")
-  (load-system :fare-quasiquote-test)
-  (funcall (find-symbol* :test-quasiquote :fare-quasiquote)))
+   (:file "pp-quasiquote" :depends-on ("quasiquote")))
+  :in-order-to ((test-op (test-op :fare-quasiquote-test))))
