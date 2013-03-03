@@ -1,6 +1,6 @@
 ;;; -*- Mode: Lisp ; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
 ;;; named readtables for fare-quasiquote
-;;; Copyright (c) 2011-2012 Fahree Reedaw <fare@tunes.org>
+;;; Copyright (c) 2011-2013 Fahree Wreido <fare@tunes.org>
 ;;; See README.quasiquote
 
 #+xcvb (module (:depends-on ("quasiquote" (:asdf "named-readtables"))))
@@ -12,9 +12,7 @@
     (:macro-char #\` #'read-read-time-backquote)
     (:macro-char #\, #'read-comma)
     (:macro-char #\# :dispatch)
-    (:dispatch-macro-char #\# #\( #'read-hash-paren)))
-
-(eval-now
+    (:dispatch-macro-char #\# #\( #'read-hash-paren))
   (named-readtables:defreadtable :fare-quasiquote
     (:fuze :standard :fare-quasiquote-mixin)))
 
