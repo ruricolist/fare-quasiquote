@@ -73,6 +73,11 @@
   (write-char #\` stream)
   (write (unparse-quasiquote form) :stream stream))
 
+(defun pprint-quote (stream form &rest noise)
+  (declare (ignore noise))
+  (write-char #\' stream)
+  (write (cadr form) :stream stream))
+
 (defun pprint-unquote (stream form &rest noise)
   (declare (ignore noise))
   (ecase (car form)
@@ -101,6 +106,7 @@
   (set-pprint-dispatch '(cl:cons (eql cons)) #'pprint-quasiquote)
   (set-pprint-dispatch '(cl:cons (eql vector)) #'pprint-quasiquote)
 
+  (set-pprint-dispatch '(cl:cons (eql quote)) #'pprint-quote)
   (set-pprint-dispatch '(cl:cons (eql unquote)) #'pprint-unquote)
   (set-pprint-dispatch '(cl:cons (eql unquote-splicing)) #'pprint-unquote)
   (set-pprint-dispatch '(cl:cons (eql unquote-nsplicing)) #'pprint-unquote)
