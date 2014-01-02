@@ -1,7 +1,7 @@
 ;;; -*- Lisp -*-
 
 (defsystem :fare-quasiquote-test
-  :depends-on (:fare-quasiquote-matcher :fare-quasiquote-optima :hu.dwim.stefil)
+  :depends-on (:fare-quasiquote-optima :hu.dwim.stefil)
   :components ((:file "quasiquote-test")))
 
 (defmethod perform ((op test-op) (sys (eql (find-system :fare-quasiquote-test))))

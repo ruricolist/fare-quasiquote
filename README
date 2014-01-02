@@ -1,34 +1,42 @@
-fare-matcher friendly implementation of Quasiquote
+pattern-matching friendly implementation of Quasiquote
 Copyright (c) 2002-2010 Fahree Reedaw <fare@tunes.org>
 
 
 PURPOSE
 
 The main purpose of this n+2nd reimplementation of quasiquote,
-is enable matching of quasiquoted patterns with fare-matcher.
+is enable matching of quasiquoted patterns, using OPTIMA.
 
-Now, developing this implementation is also a challenge in understanding
+Now, developing this implementation was also a challenge in understanding
 the ins and outs of quasiquotation, and in exploring the way it interacts
 with extended support for constant-building syntactic constructs.
-And this, at least to me is as much fun as it is an intellectual challenge. :-)
+And this, at least to me was as much fun as it was an intellectual challenge.
 
 
-INTERACTION WITH FARE-MATCHER
+HOW TO USE IT
 
-This implementation of quasiquote requires the FARE-MATCHER system.
+The FARE-QUASIQUOTE system is a straightforward reimplementation of quasiquote,
+however, it expands into a stable format that allows for pattern matching.
+When using FARE-QUASIQUOTE-OPTIMA, expressions parsed by FARE-QUASIQUOTE
+can then be use as pattern matching patterns with OPTIMA.
 
-It enables quasiquotation inside FARE-MATCHER patterns.
-However, as a limitation to such use, note that as long as
-the pattern-matcher isn't extended to match APPEND patterns,
-which typically requires backtracking, then those quasiquote templates
-that expand into something using APPEND can't be used as patterns to match.
-This mostly restricts the use of ,@ or ,. to the end of a list.
+We recommend you use NAMED-READTABLES to enable and disable FARE-QUASIQUOTE
+at the beginning and end of your Lisp files,
+or around their compilation (e.g. using ASDF around-compile hooks).
+Indeed, it is important not to let such READTABLE leak into
+the compilation of files that do not depend on FARE-QUASIQUOTE.
 
-This implementation also uses FARE-MATCHER internally,
-which allows to tremendously simplify the simplifier
-used to normalize quasiquote-using expressions.
-This simplifier in turn is necessary to simplify APPEND patterns
-into CONS LIST* and LIST patterns for use with FARE-MATCHER.
+Note that since OPTIMA doesn't support backtracking,
+it cannot match APPEND patterns, and those quasiquote templates that
+expand into something using APPEND can't be used as patterns to match.
+This means that the use of ,@ or ,. is restricted to the end of a list
+when used as a pattern.
+
+FARE-QUASIQUOTE was originally written to work with FARE-MATCHER,
+and legacy support for FARE-MATCHER is available in FARE-QUASIQUOTE-MATCHER,
+now distributed with FARE-MATCHER itself. But FARE-MATCHER is deprecated.
+OPTIMA supersedes FARE-MATCHER, and
+FARE-QUASIQUOTE-OPTIMA supersedes FARE-QUASIQUOTE-MATCHER.
 
 
 REFERENCES
@@ -77,12 +85,6 @@ TO DO
 
 BUGS:
 
-* It looks like there are nasty bugs in the simplifier.
- Maybe start again afresh with a MUP for CONS?
- We should start from the known-working algorithm described in CLtL2,
- that keeps the data in simplified form at all time incrementally,
- instead of trying a global simplification after-the-fact.
-
 * This version works inside simple vectors, so as to support
  unquoting inside the #(...) syntax as the standard mandates.
  However, doing that at macro-expansion time means that we disturb
@@ -100,6 +102,8 @@ BUGS:
 
 * Note that we do not handle unquoting inside structures
  or arrays more complex than simple vectors.
+ The CLHS standard mandates that we shouldn't.
+ Supporting it in an extensible way would require that Meta-Unquote Protocol.
 
 * Note that in the case of the macro-expansion-time expander,
  we do not check for lone unquote syntax before macro expansion,
