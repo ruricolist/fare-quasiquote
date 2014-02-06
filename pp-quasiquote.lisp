@@ -98,6 +98,13 @@
         (write-char #\Space stream))
       (write (cadr form) :stream stream))))
 
+(defun pprint-n-vector (stream form &rest noise)
+  (declare (ignore noise))
+  (write-string "`#" stream)
+  (destructuring-bind (count contents) (cdr form)
+    (when count (write count :stream stream))
+    (write (unparse-quasiquote contents) :stream stream)))
+
 (defun enable-qq-pp ()
   (set-pprint-dispatch '(cl:cons (eql list)) #'pprint-quasiquote)
   (set-pprint-dispatch '(cl:cons (eql list*)) #'pprint-quasiquote)
@@ -105,6 +112,7 @@
   (set-pprint-dispatch '(cl:cons (eql nconc)) #'pprint-quasiquote)
   (set-pprint-dispatch '(cl:cons (eql cons)) #'pprint-quasiquote)
   (set-pprint-dispatch '(cl:cons (eql vector)) #'pprint-quasiquote)
+  (set-pprint-dispatch '(cl:cons (eql n-vector)) #'pprint-n-vector)
 
   (set-pprint-dispatch '(cl:cons (eql quote)) #'pprint-quote)
   (set-pprint-dispatch '(cl:cons (eql unquote)) #'pprint-unquote)

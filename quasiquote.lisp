@@ -272,7 +272,9 @@ of the result of the top operation applied to the expression"
   ;; http://www.lisp.org/HyperSpec/Body/sec_2-4-8-3.html
   (let ((contents (read-delimited-list #\) stream t)))
     (if (> *quasiquote-level* 0)
-	(make-unquote (list 'n-vector n (quasiquote-expand contents)))
+        (if n
+            (make-unquote (list 'n-vector n (quasiquote-expand contents)))
+            (make-unquote (list 'vector (quasiquote-expand contents))))
 	(n-vector n contents))))
 
 (defun read-read-time-backquote (stream char)
