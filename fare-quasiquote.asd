@@ -10,4 +10,4 @@
   ((:file "packages")
    (:file "quasiquote" :depends-on ("packages"))
    (:file "pp-quasiquote" :depends-on ("quasiquote")))
-  :in-order-to ((test-op (test-op :fare-quasiquote-test))))
+  :in-order-to ((test-op (test-op :fare-quasiquote-test)))) ;; Don't try that with ASDF2!

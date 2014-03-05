@@ -36,10 +36,7 @@
 
 ;; You can test the quasiquote implementation like this:
 
-(defvar *saved-readtable* *readtable*)
-(defparameter *fq-readtable* (copy-readtable *saved-readtable*))
-(enable-quasiquote :readtable *fq-readtable*)
-(enable-qq-pp)
+(defparameter *fq-readtable* (named-readtables:find-readtable :fare-quasiquote))
 
 (defun fq (s)
   (let ((*readtable* *fq-readtable*))
