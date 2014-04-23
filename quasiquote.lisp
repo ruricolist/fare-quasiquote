@@ -1,7 +1,7 @@
 ;;; -*- Mode: Lisp ; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
 ;;; pattern-matching friendly implementation of Quasiquote
-;;; Copyright (c) 2002-2011 Fahree Reedaw <fare@tunes.org>
-;;; See README.quasiquote
+;;; Copyright (c) 2002-2014 Fahree Reedaw <fare@tunes.org>
+;;; See README
 
 #+xcvb (module (:depends-on ("packages")))
 
@@ -305,12 +305,14 @@ of the result of the top operation applied to the expression"
   (declare (ignore subchar))
   (read-vector stream arg))
 
-(defun enable-quasiquote (&key expansion-time (readtable *readtable*))
-  (set-macro-character #\` (backquote-reader expansion-time) nil readtable)
-  (set-macro-character #\, #'read-comma nil readtable)
+(defun enable-quasiquote (&key expansion-time (table *readtable*))
+  (set-macro-character #\` (backquote-reader expansion-time) nil table)
+  (set-macro-character #\, #'read-comma nil table)
   (when (eq expansion-time 'read)
-    (set-dispatch-macro-character #\# #\( #'read-hash-paren readtable))
+    (set-dispatch-macro-character #\# #\( #'read-hash-paren table))
   t)
+
+(defvar *fq-readtable* (let ((x (copy-readtable nil))) (enable-quasiquote :table x) x))
 
 );eval-when
 

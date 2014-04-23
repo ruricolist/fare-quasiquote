@@ -5,4 +5,4 @@
   :components ((:file "quasiquote-test"))
   :perform (test-op (o c)
              (format! t "~&Testing fare-quasiquote")
-             (symbol-call :fare-quasiquote :test-quasiquote)))
+             (symbol-call :fare-quasiquote/test :test-quasiquote)))
