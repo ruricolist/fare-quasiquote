@@ -63,8 +63,8 @@
 
 (defun quasiquote-expand-0 (x)
   "Given an expression x under a backquote, return two values:
-1- a token identifying a topmost function to apply on
-2- an argument
+1- a token identifying the context: nil quote :literal list list* append nconc
+2- a form
 When combining backquoted expressions, tokens are used for simplifications."
   (cond
    ((null x)
@@ -188,39 +188,12 @@ of the result of the top operation applied to the expression"
 (defsubst cons (x y) (cl:cons x y))
 (defsubst vector (&rest r) (apply #'cl:vector r))
 (defsubst make-vector (l) (coerce l 'simple-vector))
-(defsubst clobberable (x) x) ;; marks x as being unique and clobberable by nconc
 
 (defun k-vector (l) (list 'make-vector l))
 (defun k-list (&rest r) (cons 'list r))
 (defun k-append (&rest r) (cons 'append r))
 (defun k-list* (&rest r) (cons 'list* r))
 (defun k-cons (x y) (list 'cons x y))
-(defun insert (x) x)
-
-(defun list-extender (c)
-  (case c
-    ((cons list*) 'list*)
-    ((list) 'list)
-    (t (error "not a list constructor ~A" c))))
-
-(defun self-evaluating-p (x)
-  (or (literalp x)
-      (not (or (symbolp x) (combinationp x)
-               #|#+quasiquote-at-macro-expansion-time|# (simple-vector-p x)
-	       ))))
-(defun constant-form-p (x)
-  (or #-quasiquote-quotes-literals (self-evaluating-p x)
-      (quotep x)))
-(defun all-constant-forms-p (l)
-  (every #'constant-form-p l))
-(defun unfold-constant-form (x)
-  (if (quotep x) (single-arg x) x))
-(defun unfold-constant-forms (l)
-  (mapcar #'unfold-constant-form l))
-(defun protect-constant-form (x)
-  (if (self-evaluating-p x) x (kwote x)))
-(defun protect-constant-forms (l)
-  (mapcar #'protect-constant-form l))
 
 ;; Note: it would be a *very bad* idea to use quasiquote:quote
 ;; in the expansion of the macro-character #\'
@@ -274,7 +247,7 @@ of the result of the top operation applied to the expression"
     (if (> *quasiquote-level* 0)
         (if n
             (make-unquote (list 'n-vector n (quasiquote-expand contents)))
-            (make-unquote (list 'vector (quasiquote-expand contents))))
+            (make-unquote (k-vector (quasiquote-expand contents))))
 	(n-vector n contents))))
 
 (defun read-read-time-backquote (stream char)
@@ -308,7 +281,7 @@ of the result of the top operation applied to the expression"
 (defun enable-quasiquote (&key expansion-time (table *readtable*))
   (set-macro-character #\` (backquote-reader expansion-time) nil table)
   (set-macro-character #\, #'read-comma nil table)
-  (when (eq expansion-time 'read)
+  (when (member expansion-time '(read #-quasiquote-at-macro-expansion-time nil))
     (set-dispatch-macro-character #\# #\( #'read-hash-paren table))
   t)
 

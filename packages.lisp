@@ -4,8 +4,8 @@
 
 (defpackage #:fare-quasiquote
   (:use #:fare-utils #:common-lisp)
-  (:shadow #:list #:append #:nconc #:list* #:cons #:quote
-           #:kwote #:quotep #:vector #:n-vector #:make-vector)
+  (:shadow #:list #:append #:nconc #:list* #:cons #:quote #:vector)
+  (:shadow #:kwote #:quotep #:n-vector #:make-vector)
   (:documentation
    "Quasiquote implementation with and for pattern-matching")
   (:export #:quasiquote-expand #:quasiquote #:unquote #:unquote-splicing
