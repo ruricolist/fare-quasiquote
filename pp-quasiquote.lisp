@@ -9,114 +9,159 @@
 
 (in-package :fare-quasiquote)
 
-(defun unparse-quasiquote-1 (form splicing)
-  (ecase splicing
-    ((nil)
-     (list 'unquote form))
-    (:append
-     (list (list 'unquote-splicing form)))
-    (:nconc
-     (list (list 'unquote-nsplicing form)))))
+(defun pprint-starts-with-dot-or-at-p (form)
+  (and
+   (symbolp form)
+   (let ((output (with-output-to-string (s)
+                   (write form :stream s
+                               :level (min 1 (or *print-level* 1))
+                               :length (min 1 (or *print-length* 1))))))
+     (and (plusp (length output))
+          (or (char= (char output 0) #\.)
+              (char= (char output 0) #\@))))))
 
-(defun unparse-quasiquote (form &optional splicing)
-  "Given a lisp form containing the magic functions LIST, LIST*,
-  APPEND, etc. produced by the backquote reader macro, will return a
-  corresponding backquote input form. In this form, `,' `,@' and `,.' are
-  represented by lists whose cars are UNQUOTE, UNQUOTE-SPLICING, and
-  UNQUOTE-NSPLICING respectively, and whose cadrs are the form after the comma.
-  SPLICING indicates whether a comma-escape return should be modified for
-  splicing with other forms: a value of :APPEND or :NCONC meaning that an extra
-  level of parentheses should be added."
+#|
+(defvar *pprint-qq-context* nil)
+
+(defun pprint-qq-form (x stream)
+  (write-char #\` stream)
+  (ppqq nil x stream))
+
+(defun ppqq-context (context form stream)
+  (ecase context
+    ((nil) nil)
+    ((unquote)
+     (write-char #\, stream)
+     (when (pprint-starts-with-dot-or-at-p form) (write-char #\space stream))
+     nil)
+    ((unquote-splicing)
+     (write-string ",@" stream)
+     nil)
+    ((unquote-nsplicing)
+     (write-string ",." stream)
+     nil)
+    ((list list* cons append nconc vector n-vector make-vector quote)
+     ;;(write-char #\` stream)
+     context)))
+
+(defun quasiquote-form-p (x)
+  (and (consp x)
+       (member (car x) '(list list* cons append nconc make-vector n-vector quote
+                         unquote unquote-splicing unquote-nsplicing))
+       (car x)))
+
+(defun ppqq (context x stream)
+  (let ((qp (quasiquote-form-p x)))
+    (cond
+      ((null qp)
+       (ppqq-context context x stream)
+       (write x stream))
+            (t
+       (let ((forms (cdr x)))
+         (case qp
+           (t
+            (ppqq-context context x stream)
+            (ppqq qp form stream))))))))
+|#
+
+(defun quasiquote-unexpand (x)
+  (assert (and (consp x) (member (car x) '(list list* cons append nconc make-vector n-vector quote))))
+  (make-quasiquote (quasiquote-unexpand-00 x)))
+
+(defun quasiquote-unexpand-00 (x)
+  (quasiquote-unexpand-0 (car x) (cdr x)))
+
+(defun quasiquote-unexpand-0 (top x)
+  (ecase top
+    ((quote)
+     (assert (length=n-p x 1))
+     (car x))
+    ((make-vector)
+     (assert (length=n-p x 1))
+     (apply 'make-vector (quasiquote-unexpand-00 (car x))))
+    ((n-vector)
+     (assert (length=n-p x 2))
+     (apply 'n-vector (quasiquote-unexpand-00 (car x)) (quasiquote-unexpand-00 (cadr x))))
+    ((list)
+     (mapcar #'(lambda (el) (quasiquote-unexpand-1 'unquote el)) x))
+    ((list* cons)
+     ;;(apply 'list* (mapcar #'(lambda (el) (quasiquote-unexpand-1 'unquote el)) x))
+     (nconc (mapcar #'(lambda (el) (quasiquote-unexpand-1 'unquote el)) (butlast x))
+            (quasiquote-unexpand-1 'unquote-splicing (car (last x)))))
+    ((append)
+     (apply 'cl:append (mapcar (lambda (el) (quasiquote-unexpand-1 'unquote-splicing el)) x)))
+    ((nconc)
+     (apply 'cl:append (mapcar (lambda (el) (quasiquote-unexpand-1 'unquote-nsplicing el)) x)))))
+
+(defun quasiquote-unexpand-2 (top form)
+  (ecase top
+    ((unquote)
+     (make-unquote form))
+    ((unquote-splicing)
+     (list (make-unquote-splicing form)))
+    ((unquote-nsplicing)
+     (list (make-unquote-nsplicing form)))))
+
+(defun quasiquote-unexpand-1 (top x)
   (cond
-   ((atom form)
-    (unparse-quasiquote-1 form splicing))
-   ((not (null (cdr (last form))))
-    ;; FIXME: this probably throws a recursive error
-    (error "found illegal dotted quasiquote form: ~S" form))
-   (t
-    (case (car form)
-      ((list cl:list)
-       (mapcar #'unparse-quasiquote (cdr form)))
-      ((list* cl:list*)
-       (do ((tail (cdr form) (cdr tail))
-            (accum nil))
-           ((null (cdr tail))
-            (nconc (nreverse accum)
-                   (unparse-quasiquote (car tail) :append)))
-         (push (unparse-quasiquote (car tail)) accum)))
-      ((append cl:append)
-       (apply #'cl:append
-              (mapcar (lambda (el) (unparse-quasiquote el :append))
-                      (cdr form))))
-      ((nconc cl:nconc)
-       (apply #'cl:append
-              (mapcar (lambda (el) (unparse-quasiquote el :nconc))
-                      (cdr form))))
-      ((cons cl:cons)
-       (cl:cons (unparse-quasiquote (cadr form) nil)
-                (unparse-quasiquote (caddr form) :append)))
-      ((vector cl:vector)
-       (coerce (unparse-quasiquote (cadr form)) 'cl:vector))
-      ((quote cl:quote)
-       (cond
-         ((atom (cadr form)) (cadr form))
-         ((and (consp (cadr form))
-               (member (caadr form) *quasiquote-tokens*))
-          (unparse-quasiquote-1 form splicing))
-         (t (cons (unparse-quasiquote (list 'cl:quote (caadr form)))
-                  (unparse-quasiquote (list 'cl:quote (cdadr form)))))))
-      (t
-       (unparse-quasiquote-1 form splicing))))))
+    ((literalp x)
+     (ecase top
+       ((nil) (kwote x))
+       ((unquote) x)
+       ((unquote-splicing unquote-nsplicing) (list x))))
+    ((atom x)
+     (quasiquote-unexpand-2 top x))
+    ((not (null (cdr (last x))))
+     (error "found illegal dotted quasiquote form: ~S" x))
+    ((and (eq top 'unquote)
+          (member (car x) '(list list* cons append nconc quote make-vector n-vector)))
+     (quasiquote-unexpand-00 x))
+    ((and (member top '(unquote-splicing unquote-nsplicing))
+          (member (car x) '(list list* cons append nconc quote)))
+     (quasiquote-unexpand-00 x))
+    (t
+     (quasiquote-unexpand-2 top x))))
 
 (defun pprint-quasiquote (stream form &rest noise)
   (declare (ignore noise))
-  (write-char #\` stream)
-  (write (unparse-quasiquote form) :stream stream))
+  (write (quasiquote-unexpand form) :stream stream))
 
-(defun pprint-quote (stream form &rest noise)
-  (declare (ignore noise))
-  (write-char #\' stream)
-  (write (cadr form) :stream stream))
-
-(defun pprint-unquote (stream form &rest noise)
+(defun pprint-unquasiquote (stream form &rest noise)
   (declare (ignore noise))
   (ecase (car form)
+    ((quasiquote)
+     (write-char #\` stream))
     ((unquote)
-     (write-char #\, stream))
+     (write-char #\, stream)
+     (when (pprint-starts-with-dot-or-at-p form) (write-char #\space stream)))
     ((unquote-splicing)
      (write-string ",@" stream))
     ((unquote-nsplicing)
-     (write-string ",." stream)))
-  (let ((output (with-output-to-string (s)
-                  (write (cadr form) :stream s
-                         :level (min 1 (or *print-level* 1))
-                         :length (min 1 (or *print-length* 1))))))
-    (unless (= (length output) 0)
-      (when (and (eql (car form) 'unquote)
-                 (or (char= (char output 0) #\.)
-                     (char= (char output 0) #\@)))
-        (write-char #\Space stream))
-      (write (cadr form) :stream stream))))
+     (write-string ",." stream))
+    ((x-n-vector)
+     (write-char #\# stream)))
+  (write (cadr form) :stream stream)
+  (when (eq (car form) 'x-n-vector)
+    (write (caddr form) :stream stream))
+  nil)
 
-(defun pprint-n-vector (stream form &rest noise)
-  (declare (ignore noise))
-  (write-string "`#" stream)
-  (destructuring-bind (count contents) (cdr form)
-    (when count (write count :stream stream))
-    (write (unparse-quasiquote contents) :stream stream)))
 
 (defun enable-qq-pp (&key (priority 0) (table *print-pprint-dispatch*))
+  ;; Printing the read-time forms
   (set-pprint-dispatch '(cl:cons (eql list)) #'pprint-quasiquote priority table)
   (set-pprint-dispatch '(cl:cons (eql list*)) #'pprint-quasiquote priority table)
+  (set-pprint-dispatch '(cl:cons (eql cons)) #'pprint-quasiquote priority table)
   (set-pprint-dispatch '(cl:cons (eql append)) #'pprint-quasiquote priority table)
   (set-pprint-dispatch '(cl:cons (eql nconc)) #'pprint-quasiquote priority table)
-  (set-pprint-dispatch '(cl:cons (eql cons)) #'pprint-quasiquote priority table)
-  (set-pprint-dispatch '(cl:cons (eql vector)) #'pprint-quasiquote priority table)
-  (set-pprint-dispatch '(cl:cons (eql n-vector)) #'pprint-n-vector priority table)
-  (set-pprint-dispatch '(cl:cons (eql quote)) #'pprint-quote priority table)
-  (set-pprint-dispatch '(cl:cons (eql unquote)) #'pprint-unquote priority table)
-  (set-pprint-dispatch '(cl:cons (eql unquote-splicing)) #'pprint-unquote priority table)
-  (set-pprint-dispatch '(cl:cons (eql unquote-nsplicing)) #'pprint-unquote priority table)
+  (set-pprint-dispatch '(cl:cons (eql make-vector)) #'pprint-quasiquote priority table)
+  (set-pprint-dispatch '(cl:cons (eql n-vector)) #'pprint-quasiquote priority table)
+  (set-pprint-dispatch '(cl:cons (eql quote)) #'pprint-quasiquote priority table)
+  ;; Printing the macro-expansion-time forms
+  (set-pprint-dispatch '(cl:cons (eql quasiquote)) #'pprint-unquasiquote priority table)
+  (set-pprint-dispatch '(cl:cons (eql unquote)) #'pprint-unquasiquote priority table)
+  (set-pprint-dispatch '(cl:cons (eql unquote-splicing)) #'pprint-unquasiquote priority table)
+  (set-pprint-dispatch '(cl:cons (eql unquote-nsplicing)) #'pprint-unquasiquote priority table)
+  (set-pprint-dispatch '(cl:cons (eql x-n-vector)) #'pprint-unquasiquote priority table)
   t)
 
 (defvar *fq-pprint-dispatch*

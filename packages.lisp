@@ -3,8 +3,8 @@
 (in-package #:cl)
 
 (defpackage #:fare-quasiquote
-  (:use #:fare-utils #:common-lisp)
-  (:shadow #:list #:append #:nconc #:list* #:cons #:quote #:vector)
+  (:use #:uiop #:fare-utils #:common-lisp)
+  (:shadow #:list #:list* #:cons #:append #:nconc #:quote)
   (:shadow #:kwote #:quotep #:n-vector #:make-vector)
   (:documentation
    "Quasiquote implementation with and for pattern-matching")

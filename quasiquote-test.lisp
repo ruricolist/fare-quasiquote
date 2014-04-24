@@ -3,8 +3,10 @@
 (uiop:define-package :fare-quasiquote/test
   (:mix :fare-quasiquote :hu.dwim.stefil :common-lisp :optima :optima.extra)
   (:shadowing-import-from :fare-quasiquote
+   #:quasiquote #:unquote #:unquote-splicing #:unquote-nsplicing
    #:list #:append #:nconc #:list* #:cons #:quote #:vector
-   #:kwote #:quotep #:n-vector #:make-vector))
+   #:kwote #:quotep #:n-vector #:make-vector
+   #:quasiquote-unexpand #:quasiquote-unexpand-0 #:quasiquote-unexpand-1 #:quasiquote-unexpand-2))
 
 (in-package :fare-quasiquote/test)
 
@@ -54,27 +56,36 @@
 (defun pq (x) (with-qq-syntax () (write-to-string x)))
 
 (defparameter b 11)
+(defparameter c (list 22 33))
+(defparameter d (list 44 55))
+(defmacro q-if-match (pat val then &optional else) ;; avoid pprint rules for if* on SBCL
+  `(if-match ,pat ,val ,then ,else))
 
-(defmacro q (x y &optional (z x))
+(defmacro q (x y v &optional (z x))
   `(progn
      (is (equal (rq ,x) ',y))
-     ,(unless (eq z t)
-        `(is (equal (pq ',y) ,z)))))
+     (is (equalp ,y ',v))
+     ,(unless (eq z t) `(is (equal (pq ',y) ,z)))))
 
 (deftest test-quasiquote ()
-  (q "``a" (quote (quote a)) "''a")
-  (q "`(a ,b)" (list (quote a) b))
-  (q "`(,@a)" a "a")
-  (q "``(a ,b)" (quote (list (quote a) b)) "'`(a ,b)")
-  (q "`(a ,b)" (list (quote a) b))
-  (q "`(a ,x ,@y)" (list* (quote a) x y))
-  (is (equal (eval (rq "(if-match `(a ,x ,@y) '(a b c d) (list x y))")) '(b (c d))))
-  (q "`(1 2 3)" (quote (1 2 3)) "'(1 2 3)")
-  (q "`(a ,b ,@c .,d)" (list* (quote a) b (append c d)) "`(a ,b ,@c ,@d)")
-  (q "`(,@c .,d)" (append c d) "`(,@c ,@d)")
-  (q "```(,,a ,',',b)"
+  (q "`a" (quote a) a)
+  (q "``a" (quote (quote a)) (quote a))
+  (q "`(a ,b)" (list (quote a) b) (a 11))
+  (q "`(,@b)" b 11 "b")
+  (q "`,`a" (quote a) a "`a")
+  (q "`(,@`a)" (quote a) a "`a")
+  (q "``(a ,b)" (quote (list (quote a) b)) (list (quote a) b))
+  (q "`(a ,@b)" (cons (quote a) b) (a . 11))
+  (q "`(a ,b ,@c)" (list* (quote a) b c) (a 11 22 33))
+  (q "(q-if-match `(a ,x ,@y) '(a b c d) (vector x y))"
+      (q-if-match (list* (quote a) x y) '(a b c d) (vector x y))
+      #(b (c d)))
+  (q "`(1 2 3)" (quote (1 2 3)) (1 2 3))
+  (q "`(a ,b ,@c .,d)" (list* (quote a) b (append c d)) (a 11 22 33 44 55) "`(a ,b ,@c ,@d)")
+  (q "`(,@c .,d)" (append c d) (22 33 44 55) "`(,@c ,@d)")
+  (q "```(,,a ,',',b)" ;; This was a bug in 0.9.0 and earlier, inherited from SBCL
       (list (quote list) (quote (quote list)) (quote a)
             (list (quote list) (quote (quote common-lisp:quote)) (list (quote common-lisp:quote) b)))
-      t) ;; BUG: doesn't print correctly
+      (list (quote list) a (list (quote common-lisp:quote) '11)))
   (signals error (rq "`(foo bar #.(max 5 ,*print-base*))"))
   t)
