@@ -80,6 +80,7 @@
   (q "`(,@`a)" (quote a) a "`a")
   (q "``(a ,b)" (quote (list (quote a) b)) (list (quote a) b))
   (q "`(a ,@b)" (cons (quote a) b) (a . 11))
+  (q "`(a . ,b)" (cons (quote a) b) (a . 11) "`(a ,@b)")
   (q "`(a ,b ,@c)" (list* (quote a) b c) (a 11 22 33))
   (q "(q-if-match `(a ,x ,@y) '(a b c d) (vector x y))"
       (q-if-match (list* (quote a) x y) '(a b c d) (vector x y))
