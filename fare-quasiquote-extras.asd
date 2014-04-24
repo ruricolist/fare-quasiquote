@@ -1,7 +1,6 @@
-;;; -*- Lisp -*-
 
-(in-package :asdf)
-
-(defsystem :fare-quasiquote-extras
+(defsystem "fare-quasiquote-extras"
+  #+asdf3 :version #+asdf3 (:read-file-line "version.text")
   :description "fare-quasiquote plus extras"
-  :depends-on (:fare-quasiquote-optima :fare-quasiquote-readtable)) ;; not including deprecated fare-matcher
+  ;; not including deprecated fare-matcher anymore
+  :depends-on ("fare-quasiquote-optima" "fare-quasiquote-readtable"))

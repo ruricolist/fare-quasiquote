@@ -6,8 +6,6 @@
 
 (in-package :fare-quasiquote)
 
-(declaim (optimize (speed 1) (safety 3) (debug 3)))
-
 (eval-when (:compile-toplevel :load-toplevel :execute)
 
 ;; the below instruction enables pattern-matching for the simplifier.
@@ -19,12 +17,35 @@
     list  cl:list
     list* cl:list*
     cons  cl:cons
-    quote cl:quote
-    vector cl:vector))
-
-(optima:defpattern knil () ''nil)
+    quote cl:quote))
 
 (optima:defpattern quasiquote (x)
   (quasiquote-expand x))
+
+(defstruct (quasiquote-vector-pattern (:include optima::constructor-pattern)
+                                      (:constructor make-quasiquote-vector-pattern
+                                          (content-pattern
+                                           &aux (subpatterns (list content-pattern))))))
+
+(defmethod optima::destructor-equal ((x quasiquote-vector-pattern) (y quasiquote-vector-pattern))
+  t)
+
+(defmethod optima::destructor-predicate-form ((pattern quasiquote-vector-pattern) var)
+  `(simple-vector-p ,var))
+
+(defmethod optima::destructor-forms ((pattern quasiquote-vector-pattern) var)
+  `((coerce ,var 'cl:list)))
+
+(defmethod optima::parse-constructor-pattern ((name (eql 'make-vector)) &rest args)
+  (optima:match args
+    ((cl:list (cl:cons (cl:quote list) pats))
+     (apply #'optima::make-vector-pattern (mapcar #'optima::parse-pattern pats)))
+    ((cl:list pat)
+     (make-quasiquote-vector-pattern (optima::parse-pattern pat)))
+    (otherwise
+     (error "Bad make-vector pattern: ~S" (cons 'make-vector args)))))
+
+(defmethod optima::unparse-pattern ((pattern quasiquote-vector-pattern))
+  `(make-vector ,(optima::unparse-pattern (first (optima::constructor-pattern-subpatterns pattern)))))
 
 );eval-when

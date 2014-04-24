@@ -59,7 +59,7 @@
 
 (defmacro q (x y v &optional (z x))
   `(progn
-     (is (equal (rq ,x) ',y))
+     (is (equalp (rq ,x) ',y))
      (is (equalp ,y ',v))
      ,(unless (eq z t) `(is (equal (pq ',y) ,z)))))
 
@@ -84,6 +84,9 @@
   (q "`(a ,b ,@c)" (list* (quote a) b c) (a 11 22 33))
   (q "(q-if-match `(a ,x ,@y) '(a b c d) (vector x y))"
       (q-if-match (list* (quote a) x y) '(a b c d) (vector x y))
+      #(b (c d)))
+  (q "(q-if-match `#(a ,x ,@y) #(a b c d) (vector x y))"
+      (q-if-match (make-vector (list* (quote a) x y)) #(a b c d) (vector x y))
       #(b (c d)))
   (q "`(1 2 3)" (quote (1 2 3)) (1 2 3))
   (q "`(a ,b ,@c .,d)" (list* (quote a) b (append c d)) (a 11 22 33 44 55) "`(a ,b ,@c ,@d)")
