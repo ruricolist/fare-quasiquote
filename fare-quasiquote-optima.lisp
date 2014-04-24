@@ -27,14 +27,14 @@
                                           (content-pattern
                                            &aux (subpatterns (list content-pattern))))))
 
-(defmethod optima::destructor-equal ((x quasiquote-vector-pattern) (y quasiquote-vector-pattern))
+(defmethod optima::constructor-pattern-destructor-sharable-p
+    ((x quasiquote-vector-pattern) (y quasiquote-vector-pattern))
   t)
 
-(defmethod optima::destructor-predicate-form ((pattern quasiquote-vector-pattern) var)
-  `(simple-vector-p ,var))
-
-(defmethod optima::destructor-forms ((pattern quasiquote-vector-pattern) var)
-  `((coerce ,var 'cl:list)))
+(defmethod optima::constructor-pattern-make-destructor ((pattern quasiquote-vector-pattern) var)
+  (optima::make-destructor
+   :predicate-form `(simple-vector-p ,var)
+   :accessor-forms (list `(coerce ,var 'cl:list))))
 
 (defmethod optima::parse-constructor-pattern ((name (eql 'make-vector)) &rest args)
   (optima:match args
