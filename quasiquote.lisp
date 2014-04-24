@@ -283,6 +283,11 @@ of the result of the top operation applied to the expression"
   (read-vector stream arg))
 
 (defun enable-quasiquote (&key expansion-time (table *readtable*))
+  ;; Note that it is *NOT* OK to enable-quasiquote in the initial readtable,
+  ;; as this violates the build contract (see ASDF 3.1 documentation about readtables).
+  ;; Please only use it in your own private readtable,
+  ;; and/or use system fare-quasiquote-readtable and use
+  ;;   (named-readtables:in-readtable :fare-quasiquote)
   (set-macro-character #\` (backquote-reader expansion-time) nil table)
   (set-macro-character #\, #'read-comma nil table)
   (when (member expansion-time '(read #-quasiquote-at-macro-expansion-time nil))
