@@ -5,7 +5,7 @@
   :long-description "fare-quasiquote implements
   a portable quasiquote that you can control."
   :license "MIT"
-  :version "0.9.2"
+  :version "0.9.3"
   :depends-on (:fare-utils)
   :components
   ((:file "packages")

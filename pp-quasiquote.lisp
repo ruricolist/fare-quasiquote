@@ -2,7 +2,7 @@
 
 #+xcvb (module (:depends-on ("quasiquote")))
 
-;;;; This software is derived from the CMU CL system via SBCL.
+;;;; This software is originally derived from the CMU CL system via SBCL.
 ;;;; CMU CL was written at Carnegie Mellon University and released into
 ;;;; the public domain. The software is in the public domain and is
 ;;;; provided with absolutely no warranty.
@@ -19,50 +19,6 @@
      (and (plusp (length output))
           (or (char= (char output 0) #\.)
               (char= (char output 0) #\@))))))
-
-#|
-(defvar *pprint-qq-context* nil)
-
-(defun pprint-qq-form (x stream)
-  (write-char #\` stream)
-  (ppqq nil x stream))
-
-(defun ppqq-context (context form stream)
-  (ecase context
-    ((nil) nil)
-    ((unquote)
-     (write-char #\, stream)
-     (when (pprint-starts-with-dot-or-at-p form) (write-char #\space stream))
-     nil)
-    ((unquote-splicing)
-     (write-string ",@" stream)
-     nil)
-    ((unquote-nsplicing)
-     (write-string ",." stream)
-     nil)
-    ((list list* cons append nconc vector n-vector make-vector quote)
-     ;;(write-char #\` stream)
-     context)))
-
-(defun quasiquote-form-p (x)
-  (and (consp x)
-       (member (car x) '(list list* cons append nconc make-vector n-vector quote
-                         unquote unquote-splicing unquote-nsplicing))
-       (car x)))
-
-(defun ppqq (context x stream)
-  (let ((qp (quasiquote-form-p x)))
-    (cond
-      ((null qp)
-       (ppqq-context context x stream)
-       (write x stream))
-            (t
-       (let ((forms (cdr x)))
-         (case qp
-           (t
-            (ppqq-context context x stream)
-            (ppqq qp form stream))))))))
-|#
 
 (defun quasiquote-unexpand (x)
   (assert (and (consp x) (member (car x) '(list list* cons append nconc make-vector n-vector quote))))
@@ -133,7 +89,7 @@
      (write-char #\` stream))
     ((unquote)
      (write-char #\, stream)
-     (when (pprint-starts-with-dot-or-at-p form) (write-char #\space stream)))
+     (when (pprint-starts-with-dot-or-at-p (cadr form)) (write-char #\space stream)))
     ((unquote-splicing)
      (write-string ",@" stream))
     ((unquote-nsplicing)
