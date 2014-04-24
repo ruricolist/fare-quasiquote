@@ -57,11 +57,36 @@
 (defun qq (x) (let* ((y (rq x)) (v (eval y)) (z (pq y)))
                 `(q ,x ,y ,v ,@(unless (equal x z) (list z)))))
 
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defun f? (x)
+    (ecase x
+      (t t)
+      (r (or #-quasiquote-at-macro-expansion-time t))
+      (m (or #+quasiquote-at-macro-expansion-time t))
+      (q (or #-quasiquote-passes-literals t))
+      (l (or #+quasiquote-passes-literals t))
+      (rq (or #-(or quasiquote-at-macro-expansion-time quasiquote-passes-literals) t))
+      (mq (or #+(and quasiquote-at-macro-expansion-time (not quasiquote-passes-literals)) t))
+      (rl (or #+(and (not quasiquote-at-macro-expansion-time) quasiquote-passes-literals) t))
+      (ml (or #+(and quasiquote-at-macro-expansion-time quasiquote-passes-literals) t))))
+
+  (defun u (x)
+    (match x
+      ((list 't v) v)
+      ((type cl:cons)
+       (loop :for (f v) :in x :when (f? f) :return v))
+      (otherwise x))))
+
 (defmacro q (x y v &optional (z x))
   `(progn
-     (is (equalp (rq ,x) ',y))
-     (is (equalp ,y ',v))
-     ,(unless (eq z t) `(is (equal (pq ',y) ,z)))))
+     (is (equalp (rq ,(u x)) ',(u y)))
+     (is (equalp ,(u y) ',(u v)))
+     (is (equal (pq (rq ,x)) ',(or (u z) (u x))))))
+
+(defmacro qx (&rest tests)
+  `(progn
+     ,@(loop :for (x y v z) :in tests
+             :collect `(q ,x ,y ,v ,z))))
 
 ;;; Test values
 (defparameter a '(vector 0))
@@ -72,43 +97,124 @@
   `(if-match ,pat ,val ,then ,else))
 
 (deftest test-quasiquote ()
-  (q "`a" (quote a) a)
-  (q "``a" (quote (quote a)) (quote a))
-  (q "`(a ,b)" (list (quote a) b) (a 11))
-  (q "`(,@b)" b 11 "b")
-  (q "`,`a" (quote a) a "`a")
-  (q "`(,@`a)" (quote a) a "`a")
-  (q "``(a ,b)" (quote (list (quote a) b)) (list (quote a) b))
-  (q "`(a ,@b)" (cons (quote a) b) (a . 11))
-  (q "`(a . ,b)" (cons (quote a) b) (a . 11) "`(a ,@b)")
-  (q "`(a ,b ,@c)" (list* (quote a) b c) (a 11 22 33))
-  (q "(q-if-match `(a ,x ,@y) '(a b c d) (vector x y))"
-      (q-if-match (list* (quote a) x y) '(a b c d) (vector x y))
-      #(b (c d)))
-  (q "(q-if-match `#(a ,x ,@y) #(a b c d) (vector x y))"
-      (q-if-match (make-vector (list* (quote a) x y)) #(a b c d) (vector x y))
-      #(b (c d)))
-  (q "`(1 2 3)" (quote (1 2 3)) (1 2 3))
-  (q "`(a ,b ,@c .,d)" (list* (quote a) b (append c d)) (a 11 22 33 44 55) "`(a ,b ,@c ,@d)")
-  (q "`(,@c .,d)" (append c d) (22 33 44 55) "`(,@c ,@d)")
-  (q "```(,,a ,',',b)" ;; This was a bug in 0.9.0 and earlier, inherited from SBCL
-      (list (quote list) (quote (quote list)) (quote a)
-            (list (quote list) (quote (quote common-lisp:quote)) (list (quote common-lisp:quote) b)))
-      (list (quote list) a (list (quote common-lisp:quote) '11)))
-  (signals error (rq "`(foo bar #.(max 5 ,*print-base*))"))
-  (q "`#(a ,b)" (make-vector (list (quote a) b)) #(a 11))
-  (q "`#3(a ,b)" (n-vector 3 (list (quote a) b)) #(a 11 11))
-  (q "`#5(a ,@c)" (n-vector 5 (cons (quote a) c)) #(a 22 33 33 33))
-  (q "`(foobar a b ,c ,'(e f g) d ,@'(e f g) (h i j) ,@b)"
-      (list* (quote foobar) (quote a) (quote b) c '(e f g) (quote d)
-             (append '(e f g) (cons (quote (h i j)) b)))
-      (foobar a b (22 33) (e f g) d e f g (h i j) . 11))
+  (qx
+   ("`a"
+    ((r (quote a)) (m (quasiquote a)))
+    (t a))
+   ("``a"
+    ((r (quote (quote a)))
+     (m (quasiquote (quasiquote a))))
+    (t (quote a)))
+   ("`(a ,b)"
+    ((r (list (quote a) b))
+     (m (quasiquote (a (unquote b)))))
+    (t (a 11)))
+   ("``(a ,b)"
+    ((r (quote (list (quote a) b)))
+     (m (quasiquote (quasiquote (a (unquote b))))))
+    (t (list (quote a) b)))
+   ("`(a ,@b)"
+    ((r (cons (quote a) b))
+     (m (quasiquote (a (unquote-splicing b)))))
+    (t (a . 11)))
+   ("`(,@b)"
+    ((r b) (m (quasiquote ((unquote-splicing b)))))
+    11
+    ((r "b")))
+   ("`,`a"
+    ((r (quote a))
+     (m (quasiquote (unquote (quasiquote a)))))
+    (t a)
+    ((r "`a")))
+   ("`(,@`a)"
+    ((r (quote a))
+     (m (quasiquote ((unquote-splicing (quasiquote a))))))
+    (t a)
+    ((r "`a")))
+   ("`(a . ,b)"
+    ((r (cons (quote a) b))
+     (m (quasiquote (a unquote b))))
+    (t (a . 11))
+    ((r "`(a ,@b)")
+     (m "`(a unquote b)")))
+   ("`(a ,b ,@c)"
+    ((r (list* (quote a) b c))
+     (m (quasiquote (a (unquote b) (unquote-splicing c)))))
+    (t (a 11 22 33)))
+   ("(q-if-match `(a ,x ,@y) '(a b c d) (vector x y))"
+    ((r (q-if-match (list* (quote a) x y) '(a b c d) (vector x y)))
+     (m (q-if-match (quasiquote (a (unquote x) (unquote-splicing y))) '(a b c d) (vector x y))))
+    #(b (c d)))
+   #-quasiquote-at-macro-expansion-time
+   ("(q-if-match `#(a ,x ,@y) #(a b c d) (vector x y))"
+    ((r (q-if-match (make-vector (list* (quote a) x y)) #(a b c d) (vector x y)))
+     (m (q-if-match (quasiquote #(a (unquote x) (unquote-splicing y))) #(a b c d) (vector x y))))
+    #(b (c d)))
+   ("`(1 2 3)"
+    ((r (quote (1 2 3)))
+     (m (quasiquote (1 2 3))))
+    (t (1 2 3)))
+   ("`(a ,b ,@c .,d)"
+    ((r (list* (quote a) b (append c d)))
+     (m (quasiquote (a (unquote b) (unquote-splicing c) unquote d))))
+    (t (a 11 22 33 44 55))
+    ((r "`(a ,b ,@c ,@d)")
+     (m "`(a ,b ,@c unquote d)")))
+   ("`(,@c .,d)"
+    ((r (append c d))
+     (m (quasiquote ((unquote-splicing c) unquote d))))
+    (t (22 33 44 55))
+    ((r "`(,@c ,@d)")
+     (m "`(,@c unquote d)")))
+   ("```(,,a ,',',b)"
+    ;; The pretty-printer in 0.9.0 and earlier, had a bug inherited from SBCL,
+    ;; and couldn't pretty-print this form back to its value.
+    ((r (list (quote list) (quote (quote list)) (quote a)
+              (list (quote list) (quote (quote common-lisp:quote)) (list (quote common-lisp:quote) b))))
+     (m (quasiquote (quasiquote (quasiquote ((unquote (unquote a)) (unquote '(unquote '(unquote b)))))))))
+    (t (list (quote list) a (list (quote common-lisp:quote) '11))))
+   #-quasiquote-at-macro-expansion-time
+   ("`#(a ,b)"
+    ((r (make-vector (list (quote a) b)))
+     (m (quasiquote #(a (unquote b)))))
+    #(a 11))
+   #-quasiquote-at-macro-expansion-time
+   ("`#3(a ,b)"
+    ((r (n-vector 3 (list (quote a) b)))
+     (m (quasiquote #(a (unquote b) (unquote b)))))
+    #(a 11 11)
+    ((m "#(a ,b ,b)")))
+   #-quasiquote-at-macro-expansion-time
+   ("`#5(a ,@c)"
+    ((r (n-vector 5 (cons (quote a) c)))
+     (m (quasiquote #(a (unquote-splicing c) (unquote-splicing c)
+                      (unquote-splicing c) (unquote-splicing c)))))
+    ((r #(a 22 33 33 33))
+     (m #(a 22 33 22 33 22 33 22 33)))
+    ((m "#(a ,@c ,@c ,@c unquote c")))
+   ("`(foobar a b ,c ,'(e f g) d ,@'(e f g) (h i j) ,@b)"
+    ((r (list* (quote foobar) (quote a) (quote b) c '(e f g) (quote d)
+               (append '(e f g) (cons (quote (h i j)) b))))
+     (m (quasiquote (foobar a b (unquote c) (unquote '(e f g)) d
+                            (unquote-splicing '(e f g)) (h i j) (unquote-splicing b)))))
+    (t (foobar a b (22 33) (e f g) d e f g (h i j) . 11)))
+   ("``(, @c)"
+    ((r (quote (list @c)))
+     (m (quasiquote (quasiquote ((unquote @c))))))
+    (t (list @c)))
+   ("``(, .c)"
+    ((r (quote (list .c)))
+     (m (quasiquote (quasiquote ((unquote .c))))))
+    (t (list .c))))
   (let ((c (list 2 3)))
-    (q "`(1 ,b ,@a ,.c ,.d)" (list* (quote 1) b (append a (nconc c d))) (1 11 vector 0 2 3 44 55))
+    (q "`(1 ,b ,@a ,.c ,.d)"
+       ((rq (list* (quote 1) b (append a (nconc c d))))
+        (rl (list* 1 b (append a (nconc c d))))
+        (m (quasiquote (1 (unquote b) (unquote-splicing a) (unquote-nsplicing c) (unquote-nsplicing d)))))
+       (t (1 11 vector 0 2 3 44 55)))
     ;; NCONC is evil. Use at your own risk!
     (is (equal c '(2 3 44 55))))
-  (q "``(, @c)" (quote (list @c)) (list @c))
-  (q "``(, .c)" (quote (list .c)) (list .c))
+  (signals error (rq "`(foo bar #.(max 5 ,*print-base*))"))
   t)
 
 ;;; Double-quasiquote test from the SBCL test suite backq.impure.lisp
@@ -145,3 +251,26 @@
   (loop :for (expression . value) :in *double-quasiquote-tests* :do
     (is (equal (eval (eval (rq expression))) value)))
   t)
+
+#|
+;; To test this system in all configurations:
+
+cl-launch \
+"(asdf:test-system :fare-quasiquote :force '(fare-quasiquote fare-quasiquote-test))"
+
+cl-launch \
+"(progn
+   (pushnew :quasiquote-at-macro-expansion-time *features*)
+   (asdf:test-system :fare-quasiquote :force '(fare-quasiquote fare-quasiquote-test)))"
+
+cl-launch \
+"(progn
+   (pushnew :quasiquote-passes-literals *features*)
+   (asdf:test-system :fare-quasiquote :force '(fare-quasiquote fare-quasiquote-test)))"
+
+cl-launch \
+"(progn
+   (pushnew :quasiquote-at-macro-expansion-time *features*)
+   (pushnew :quasiquote-passes-literals *features*)
+   (asdf:test-system :fare-quasiquote :force '(fare-quasiquote fare-quasiquote-test)))"
+|#

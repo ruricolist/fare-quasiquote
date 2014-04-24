@@ -14,11 +14,6 @@
 ;;(pushnew :quasiquote-passes-literals *features*)
 ;;(pushnew :quasiquote-at-macro-expansion-time *features*)
 
-(defvar *quasiquote-tokens*
-  '(quasiquote unquote unquote-splicing unquote-splicing
-    list list* cons append nconc
-    make-vector n-vector))
-
 ;;; Functions that actually build data structures.
 ;; Note that we want our own tokens for decompilation reasons,
 ;; but as functions they must evaluate the usual way.
@@ -104,7 +99,7 @@ When combining backquoted expressions, tokens are used for simplifications."
     (values nil nil))
    #+quasiquote-at-macro-expansion-time
    ((simple-vector-p x)
-    (values 'make-vector (quasiquote-expand-1 'list (coerce x 'cl:list))))
+    (values 'make-vector (list (quasiquote-expand-1 'list (coerce x 'cl:list)))))
    ((literalp x)
     (values #+quasiquote-passes-literals :literal #-quasiquote-passes-literals 'quote x))
    ((or (symbolp x) (quotep x))
