@@ -22,7 +22,7 @@ How to use it
 
 The FARE-QUASIQUOTE system is a straightforward reimplementation of quasiquote;
 however, it expands into a stable format that allows for pattern matching,
-by privileging LIST LIST* and CONS constructors over APPEND and NCONC
+by privileging LIST before CONS before LIST* before APPEND before NCONC
 (and BTW, you should never, ever, use NCONC).
 When using FARE-QUASIQUOTE-OPTIMA, expressions parsed by FARE-QUASIQUOTE
 can be used as pattern matching patterns with OPTIMA.

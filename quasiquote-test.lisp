@@ -150,10 +150,19 @@
     ((r (q-if-match (make-vector (list* (quote a) x y)) #(a b c d) (vector x y)))
      (m (q-if-match (quasiquote #(a (unquote x) (unquote-splicing y))) #(a b c d) (vector x y))))
     #(b (c d)))
+   #-quasiquote-at-macro-expansion-time
+   ("(q-if-match `#(a ,x ,y d) #(a b c d) (vector x y))"
+    ((r (q-if-match (make-vector (list (quote a) x y (quote d))) #(a b c d) (vector x y)))
+     (m (q-if-match (quasiquote #(a (unquote x) (unquote y) d)) #(a b c d) (vector x y))))
+    #(b c))
    ("`(1 2 3)"
     ((r (quote (1 2 3)))
      (m (quasiquote (1 2 3))))
     (t (1 2 3)))
+   ("`(a ,@c . 4)"
+    ((r (cons (quote a) (append c (quote 4))))
+     (m (quasiquote (a (unquote-splicing c) . 4))))
+    (t (a 22 33 . 4)))
    ("`(a ,b ,@c .,d)"
     ((r (list* (quote a) b (append c d)))
      (m (quasiquote (a (unquote b) (unquote-splicing c) unquote d))))
