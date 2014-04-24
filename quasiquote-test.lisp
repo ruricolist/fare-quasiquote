@@ -145,15 +145,14 @@
     ((r (q-if-match (list* (quote a) x y) '(a b c d) (vector x y)))
      (m (q-if-match (quasiquote (a (unquote x) (unquote-splicing y))) '(a b c d) (vector x y))))
     #(b (c d)))
-   #-quasiquote-at-macro-expansion-time
    ("(q-if-match `#(a ,x ,@y) #(a b c d) (vector x y))"
     ((r (q-if-match (make-vector (list* (quote a) x y)) #(a b c d) (vector x y)))
-     (m (q-if-match (quasiquote #(a (unquote x) (unquote-splicing y))) #(a b c d) (vector x y))))
+     (m (q-if-match (quasiquote (unquote (make-vector (list* (quote a) x y)))) #(a b c d) (vector x y))))
     #(b (c d)))
-   #-quasiquote-at-macro-expansion-time
    ("(q-if-match `#(a ,x ,y d) #(a b c d) (vector x y))"
     ((r (q-if-match (make-vector (list (quote a) x y (quote d))) #(a b c d) (vector x y)))
-     (m (q-if-match (quasiquote #(a (unquote x) (unquote y) d)) #(a b c d) (vector x y))))
+     (m (q-if-match (quasiquote (unquote (make-vector (list (quote a) x y (quote d)))))
+                    #(a b c d) (vector x y))))
     #(b c))
    ("`(1 2 3)"
     ((r (quote (1 2 3)))
@@ -182,25 +181,18 @@
               (list (quote list) (quote (quote common-lisp:quote)) (list (quote common-lisp:quote) b))))
      (m (quasiquote (quasiquote (quasiquote ((unquote (unquote a)) (unquote '(unquote '(unquote b)))))))))
     (t (list (quote list) a (list (quote common-lisp:quote) '11))))
-   #-quasiquote-at-macro-expansion-time
    ("`#(a ,b)"
     ((r (make-vector (list (quote a) b)))
-     (m (quasiquote #(a (unquote b)))))
+     (m (quasiquote (unquote (make-vector (list (quote a) b))))))
     #(a 11))
-   #-quasiquote-at-macro-expansion-time
    ("`#3(a ,b)"
     ((r (n-vector 3 (list (quote a) b)))
-     (m (quasiquote #(a (unquote b) (unquote b)))))
-    #(a 11 11)
-    ((m "#(a ,b ,b)")))
-   #-quasiquote-at-macro-expansion-time
+     (m (quasiquote (unquote (n-vector 3 (list (quote a) b))))))
+    #(a 11 11))
    ("`#5(a ,@c)"
     ((r (n-vector 5 (cons (quote a) c)))
-     (m (quasiquote #(a (unquote-splicing c) (unquote-splicing c)
-                      (unquote-splicing c) (unquote-splicing c)))))
-    ((r #(a 22 33 33 33))
-     (m #(a 22 33 22 33 22 33 22 33)))
-    ((m "#(a ,@c ,@c ,@c unquote c")))
+     (m (quasiquote (unquote (n-vector 5 (cons (quote a) c))))))
+    #(a 22 33 33 33))
    ("`(foobar a b ,c ,'(e f g) d ,@'(e f g) (h i j) ,@b)"
     ((r (list* (quote foobar) (quote a) (quote b) c '(e f g) (quote d)
                (append '(e f g) (cons (quote (h i j)) b))))

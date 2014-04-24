@@ -61,22 +61,20 @@ Essential documents consulted while implementing this file:
   * SBCL backquote implementation (derived from CMUCL, used the October 2010 version).
 
 
-Read-time expansion
--------------------
+Read-time vs Macro-expansion-time
+---------------------------------
 
 In conformance with the CLHS, FARE-QUASIQUOTE expands its patterns at read-time,
 at least unless you enable a feature #+quasiquote-at-macro-expansion-time.
 
-The read-time expander correctly handles #() syntax and even #n() syntax,
+In both cases, FARE-QUASIQUOTE handles unquoting in #() and #n() syntax
 by re-defining the syntax for hash-left-paren as well as for backquote.
-
-
-Macroexpansion-time expansion
------------------------------
 
 If you enable feature #+quasiquote-at-macro-expansion-time,
 FARE-QUASIQUOTE will expands its patterns at macro-expansion time,
-using the same convention as Scheme.
+using the same convention as Scheme, with symbols
+quasiquote, unquote, unquote-splicing and unquote-nsplicing
+defined in package FARE-QUASIQUOTE (but not exported from it).
 
 
 Known Issues
@@ -125,10 +123,9 @@ Known Issues
 
 * This version works inside simple vectors, so as to support
  unquoting inside the #(...) syntax as the standard mandates.
- However, if you enable #+quasiquote-at-macro-expansion-time feature,
- doing that at macro-expansion time means that we disturb
- any SIMPLE-VECTOR that appears in the source code, even if it comes
- from forms other than #(...), such as #1A(...) or #.(VECTOR ...).
+ To do that, it replaces the hash-left-paren reader-macro
+ as well as the backquote reader-macro.
+ Note that this does not work in #1A(...) syntax.
  This phenomenon has been documented before in the following message:
 	http://groups.google.com/groups?q=author:kaz%40ashi.footprints.net&hl=en&lr=&ie=UTF-8&oe=UTF-8&safe=off&selm=cf333042.0303141409.bbf02e9%40posting.google.com&rnum=4
 

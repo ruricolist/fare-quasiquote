@@ -12,7 +12,6 @@
     (:macro-char #\` #'read-read-time-backquote)
     (:macro-char #\, #'read-comma)
     (:macro-char #\# :dispatch)
-    #-quasiquote-at-macro-expand-time
     (:dispatch-macro-char #\# #\( #'read-hash-paren))
   (named-readtables:defreadtable :fare-quasiquote
     (:fuze :standard :fare-quasiquote-mixin)))
