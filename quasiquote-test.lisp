@@ -54,6 +54,7 @@
 
 (defun rq (s) (with-qq-syntax () (read-from-string s)))
 (defun pq (x) (with-qq-syntax () (write-to-string x)))
+(defun qq (x) (pq (rq x)))
 
 (defparameter b 11)
 (defparameter c (list 22 33))
@@ -88,4 +89,7 @@
             (list (quote list) (quote (quote common-lisp:quote)) (list (quote common-lisp:quote) b)))
       (list (quote list) a (list (quote common-lisp:quote) '11)))
   (signals error (rq "`(foo bar #.(max 5 ,*print-base*))"))
+  (q "`#(a ,b)" (make-vector (list (quote a) b)) #(a 11))
+  (q "`#3(a ,b)" (n-vector 3 (list (quote a) b)) #(a 11 11))
+  (q "`#5(a ,@c)" (n-vector 5 (cons (quote a) c)) #(a 22 33 33 33))
   t)
