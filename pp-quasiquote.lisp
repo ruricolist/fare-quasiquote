@@ -28,11 +28,20 @@
 (defmethod print-object ((x x-n-vector) stream)
   (write-char #\# stream)
   (when (x-n-vector-n x) (write (x-n-vector-n x) :stream stream))
-  (write (x-n-vector-contents x) :stream stream))
+  (let* ((c (x-n-vector-contents x))
+         (u (if (quasiquote-form-p c)
+                (quasiquote-unexpand c)
+                (list (make-unquote-splicing c)))))
+    (write u :stream stream)))
 
 (defun quasiquote-unexpand (x)
   (assert (quasiquote-form-p x))
   (quasiquote-unexpand-0 (car x) (cdr x)))
+
+(defun quasiquote-unexpand-last (x)
+  (quasiquote-unexpand-1
+   #-quasiquote-strict-append 'unquote-splicing #+quasiquote-strict-append 'x-unquote
+   (car (last x))))
 
 (defun quasiquote-unexpand-0 (top x)
   (ecase top
@@ -42,21 +51,21 @@
     ((make-vector n-vector)
      (let ((form (cons top x)))
        (assert (valid-k-n-vector-p form))
-       (make-x-n-vector :n (k-n-vector-n form) :contents (quasiquote-unexpand (k-n-vector-contents form)))))
+       (make-x-n-vector :n (k-n-vector-n form) :contents (k-n-vector-contents form))))
     ((list)
      (mapcar #'(lambda (el) (quasiquote-unexpand-1 'unquote el)) x))
     ((list* cons)
      ;;(apply 'list* (mapcar #'(lambda (el) (quasiquote-unexpand-1 'unquote el)) x))
      (nconc (mapcar #'(lambda (el) (quasiquote-unexpand-1 'unquote el)) (butlast x))
-            (quasiquote-unexpand-1 'x-unquote (car (last x)))))
+            (quasiquote-unexpand-last x)))
     ((append)
      (append (apply 'append
                     (mapcar (lambda (el) (quasiquote-unexpand-1 'unquote-splicing el)) (butlast x)))
-             (quasiquote-unexpand-1 'x-unquote (car (last x)))))
+             (quasiquote-unexpand-last x)))
     ((nconc)
      (append (apply 'append
                     (mapcar (lambda (el) (quasiquote-unexpand-1 'unquote-nsplicing el)) (butlast x)))
-             (quasiquote-unexpand-1 'x-unquote (car (last x)))))))
+             (quasiquote-unexpand-last x)))))
 
 (defun quasiquote-unexpand-2 (top form)
   (ecase top

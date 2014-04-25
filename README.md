@@ -139,11 +139,25 @@ Known Issues
 
 * The CLHS section 2.4.6 says that `(x1 x2 ... xn . atom) is same as
  (append [ x1] [ x2] [ x3] ... [ xn] (quote atom)) -- mind that the atom is preserved.
- This means that you can't simplify `(a b ,@c) to `(a b . ,c)
- unless you know that c is a proper list (if it isn't, that's an error),
- despite the fact that the CLHS itself suggests the simplification.
- That's somewhat problematic for using ,@ in the matcher as promised.
- The simplification is enabled is #+quasiquote-lax-append is enabled.
+ This means that you can't conformantly simplify `(a b ,@c) to `(a b . ,c)
+ unless you know that c is a proper list (if it isn't, that's an error).
+ Yet, the CLHS itself suggests the simplification, and all implementations tested
+ agree that a final (quote nil) can be elided:
+
+	for l in sbcl ccl clisp cmucl ecl abcl \
+                 scl allegro lispworks gcl xcl ; do
+	  cl -l $l -i \
+	 '(format t "'$l': ~S~%" `(,@`(a b) ,@`c)))' \
+	  2>&1 | grep "^$l:" # LW, GCL are verbose
+	done
+
+ yet at the same time, SBCL still complains about `(,@1).
+ fare-quasiquote follows the consensus, unless #+quasiquote-strict-append is enabled.
+
+ * The current implementation of fare-quasiquote tends to simplify away things
+   like `,c to c or without #+quasiquote-strict-append also `(,@c) to c.
+   These simplifications probably need to be somehow prevented by default.
+   Maybe with various kinds of (identity) wrappers to indicate quoting-unquoting?
 
 
 Meta Unquote Protocol (not implemented)

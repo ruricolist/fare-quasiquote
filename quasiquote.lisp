@@ -11,7 +11,7 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
 ;;;; uncomment some of the lines below to disable according simplifications:
-;;(pushnew :quasiquote-lax-append *features*)
+;;(pushnew :quasiquote-strict-append *features*)
 ;;(pushnew :quasiquote-passes-literals *features*)
 ;;(pushnew :quasiquote-at-macro-expansion-time *features*)
 
@@ -90,8 +90,10 @@
 (defun valid-k-n-vector-p (x)
   (or (and (length=n-p x 3) (eq (first x) 'n-vector)
            (typep (second x) `(or null (integer 0 ,array-rank-limit)))
+           #+quasiquote-strict-append
            (quasiquote-form-p (third x)))
       (and (length=n-p x 2) (eq (first x) 'make-vector)
+           #+quasiquote-strict-append
            (quasiquote-form-p (second x)))))
 
 (defun k-n-vector-n (x)
@@ -152,7 +154,7 @@ When combining backquoted expressions, tokens are used for simplifications."
         (cond
           ((eq atop 'unquote-splicing)
            (cond
-             #+quasiquote-lax-append
+             #-quasiquote-strict-append
              ((null dtop)
               (if (unquote-xsplicing-p a)
                   (values 'append (list a))
@@ -164,7 +166,7 @@ When combining backquoted expressions, tokens are used for simplifications."
                             (t (list a (quasiquote-expand-1 dtop d))))))))
           ((eq atop 'unquote-nsplicing)
            (cond
-             #+quasiquote-lax-append
+             #-quasiquote-strict-append
              ((null dtop)
               (if (unquote-nsplicing-p a)
                   (values 'nconc (list a))
@@ -229,7 +231,7 @@ of the result of the top operation applied to the expression"
      (kwote x))
     ((member top '(cons list*))
      (cond
-       #+quasiquote-lax-append
+       #-quasiquote-strict-append
        ((length=n-p x 1) x)
        ((let ((last (last x)))
           (when (or (null last) (and (consp last) (quotep (car last))

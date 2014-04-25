@@ -61,17 +61,19 @@
                 `(q ,x ,y ,v ,@(unless (equal x z) (list z)))))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
+  (defparameter *letter-feature*
+    '((#\r (:not :quasiquote-at-macro-expansion-time))
+      (#\m :quasiquote-at-macro-expansion-time)
+      (#\q (:not :quasiquote-passes-literals))
+      (#\l :quasiquote-passes-literals)
+      (#\a (:not :quasiquote-strict-append))
+      (#\s :quasiquote-strict-append)))
+
   (defun f? (x)
-    (ecase x
-      (t t)
-      (r (or #-quasiquote-at-macro-expansion-time t))
-      (m (or #+quasiquote-at-macro-expansion-time t))
-      (q (or #-quasiquote-passes-literals t))
-      (l (or #+quasiquote-passes-literals t))
-      (rq (or #-(or quasiquote-at-macro-expansion-time quasiquote-passes-literals) t))
-      (mq (or #+(and quasiquote-at-macro-expansion-time (not quasiquote-passes-literals)) t))
-      (rl (or #+(and (not quasiquote-at-macro-expansion-time) quasiquote-passes-literals) t))
-      (ml (or #+(and quasiquote-at-macro-expansion-time quasiquote-passes-literals) t))))
+    (or (eq x t)
+        (loop :for c :across (string-downcase x)
+              :for f = (cadr (assoc c *letter-feature*))
+              :always (uiop:featurep f))))
 
   (defun u (x)
     (match x
@@ -118,12 +120,16 @@
      (m (quasiquote (quasiquote (a (unquote b))))))
     (t (list (quote a) b)))
    ("`(a ,@c)"
-    ((r (cons (quote a) (append c nil)))
+    ((ra (cons (quote a) c))
+     (rs (cons (quote a) (append c nil)))
      (m (quasiquote (a (unquote-splicing c)))))
     (t (a 22 33)))
    ("`(,@c)"
-    ((r (append c nil)) (m (quasiquote ((unquote-splicing c)))))
-    (t (22 33)))
+    ((ra c)
+     (rs (append c nil))
+     (m (quasiquote ((unquote-splicing c)))))
+    (t (22 33))
+    ((a "c")))
    ("`,`a"
     ((r (quote a))
      (m (quasiquote (unquote (quasiquote a)))))
@@ -132,19 +138,23 @@
    ("`(a . ,b)"
     ((r (cons (quote a) b))
      (m (quasiquote (a unquote b))))
-    (t (a . 11)))
+    (t (a . 11))
+    ((a "`(a ,@b)")))
    ("`(a ,b ,@c)"
-    ((r (list* (quote a) b (append c nil)))
+    ((ra (list* (quote a) b c))
+     (rs (list* (quote a) b (append c nil)))
      (m (quasiquote (a (unquote b) (unquote-splicing c)))))
     (t (a 11 22 33)))
    ("(q-if-match `(a ,x . ,y) '(a b c d) (vector x y))"
     ((r (q-if-match (list* (quote a) x y) '(a b c d) (vector x y)))
      (m (q-if-match (quasiquote (a (unquote x) unquote y)) '(a b c d) (vector x y))))
-    #(b (c d)))
+    #(b (c d))
+    ((a "(q-if-match `(a ,x ,@y) '(a b c d) (vector x y))")))
    ("(q-if-match `#(a ,x . ,y) #(a b c d) (vector x y))"
     ((r (q-if-match (make-vector (list* (quote a) x y)) #(a b c d) (vector x y)))
      (m (q-if-match (quasiquote (unquote (make-vector (list* (quote a) x y)))) #(a b c d) (vector x y))))
-    #(b (c d)))
+    #(b (c d))
+    ((a "(q-if-match `#(a ,x ,@y) #(a b c d) (vector x y))")))
    ("(q-if-match `#(a ,x ,y d) #(a b c d) (vector x y))"
     ((r (q-if-match (make-vector (list (quote a) x y (quote d))) #(a b c d) (vector x y)))
      (m (q-if-match (quasiquote (unquote (make-vector (list (quote a) x y (quote d)))))
@@ -161,11 +171,13 @@
    ("`(a ,b ,@c . ,d)"
     ((r (list* (quote a) b (append c d)))
      (m (quasiquote (a (unquote b) (unquote-splicing c) unquote d))))
-    (t (a 11 22 33 44 55)))
+    (t (a 11 22 33 44 55))
+    ((a "`(a ,b ,@c ,@d)")))
    ("`(,@c . ,d)"
     ((r (append c d))
      (m (quasiquote ((unquote-splicing c) unquote d))))
-    (t (22 33 44 55)))
+    (t (22 33 44 55))
+    ((a "`(,@c ,@d)")))
    ("```(,,a ,',',b)"
     ;; The pretty-printer in 0.9.0 and earlier, had a bug inherited from SBCL,
     ;; and couldn't pretty-print this form back to its value.
@@ -182,12 +194,16 @@
      (m (quasiquote (unquote (n-vector 3 (list (quote a) b))))))
     #(a 11 11))
    ("`#5(a ,@c)"
-    ((r (n-vector 5 (cons (quote a) (append c nil))))
-     (m (quasiquote (unquote (n-vector 5 (cons (quote a) (append c nil)))))))
+    ((rs (n-vector 5 (cons (quote a) (append c nil))))
+     (ra (n-vector 5 (cons (quote a) c)))
+     (ms (quasiquote (unquote (n-vector 5 (cons (quote a) (append c nil))))))
+     (ma (quasiquote (unquote (n-vector 5 (cons (quote a) c))))))
     #(a 22 33 33 33))
    ("`(foobar a b ,c ,'(e f g) d ,@'(e f g) (h i j) ,@c)"
-    ((r (list* (quote foobar) (quote a) (quote b) c '(e f g) (quote d)
-               (append '(e f g) (cons (quote (h i j)) (append c nil)))))
+    ((rs (list* (quote foobar) (quote a) (quote b) c '(e f g) (quote d)
+                (append '(e f g) (cons (quote (h i j)) (append c nil)))))
+     (ra (list* (quote foobar) (quote a) (quote b) c '(e f g) (quote d)
+                (append '(e f g) (cons (quote (h i j)) c))))
      (m (quasiquote (foobar a b (unquote c) (unquote '(e f g)) d
                             (unquote-splicing '(e f g)) (h i j) (unquote-splicing c)))))
     (t (foobar a b (22 33) (e f g) d e f g (h i j) 22 33)))
@@ -199,14 +215,20 @@
     ((r (quote (list .c)))
      (m (quasiquote (quasiquote ((unquote .c))))))
     (t (list .c)))
+   ("`(1 ,b)"
+    ((rq (list (quote 1) b))
+     (rl (list 1 b))
+     (m (quasiquote (1 (unquote b)))))
+    (t (1 11)))
    ;; From the SBCL test suite
    ("(list 'foo b)" (t (list 'foo b)) (t (foo 11)) "`(,'foo ,b)"))
   (let ((c (list 2 3)))
-    (q "`(1 ,b ,@a ,.c ,.d)"
-       ((rq (list* (quote 1) b (append a (nconc c d nil))))
-        (rl (list* 1 b (append a (nconc c d nil))))
-        (m (quasiquote (1 (unquote b) (unquote-splicing a) (unquote-nsplicing c) (unquote-nsplicing d)))))
-       (t (1 11 vector 0 2 3 44 55)))
+    (q "`(x ,b ,@a ,.c ,.d)"
+       ((ra (list* (quote x) b (append a (nconc c d))))
+        (rs (list* (quote x) b (append a (nconc c d nil))))
+        (m (quasiquote (x (unquote b) (unquote-splicing a) (unquote-nsplicing c) (unquote-nsplicing d)))))
+       (t (x 11 vector 0 2 3 44 55))
+       ((a "`(x ,b ,@a ,.c ,@d)")))
     ;; NCONC is evil. Use at your own risk!
     (is (equal c '(2 3 44 55))))
   (signals error (rq "`(foo bar #.(max 5 ,*print-base*))"))
@@ -292,7 +314,10 @@
     ;; Continuing with *BACKQUOTE-TESTS*, instead of checking for the value
     ;; after twice evaluating, check for expected printed form after one eval.
     (e "`(,(*rr* *ss*))" "``(,,*qq*)")
+    #+quasiquote-strict-append
     (e "`(,@(*rr* *ss*))" "``(,@,*qq*))")
+    #-quasiquote-strict-append
+    (e "(*rr* *ss*)" "``(,@,*qq*))")
     (e "`(,*rr* ,*ss*)" "``(,,@*qq*)")
     ;; could do the rest but pprinting is pretty simple now, so ... nah
 
@@ -328,13 +353,17 @@
   (is (equal (prq "`(,  .foo)") "`(, .foo)"))
   (is (equal (prq "`(,  @foo)") "`(, @foo)"))
   (is (equal (prq "`(,  ?foo)") "`(,?foo)"))
-  (is (equal (prq "`(x .,  @foo)") "`(x . , @foo)")))
+  (is (equal (prq "`(x .,  @foo)")
+             #-quasiquote-strict-append "`(x ,@@foo)"
+             #+quasiquote-strict-append "`(x . , @foo)")))
 
 ;;; unquoted lambda lists should not leak the UNQUOTE implementation.
 (deftest pprint-leaking-backq-comma ()
   (is (equal (prq "`(foo ,x)") "`(foo ,x)"))
   (is (equal (prq "`(foo ,@x)") "`(foo ,@x)"))
-  (is (equal (prq "`(foo ,.x)") "`(foo ,.x)"))
+  (is (equal (prq "`(foo ,.x)")
+             #-quasiquote-strict-append "`(foo ,@x)"
+             #+quasiquote-strict-append "`(foo ,.x)"))
   (is (equal (prq "`(foo (,x))") "`(foo (,x))")))
 
 ;;; more backquote printing brokenness, fixed quasi-randomly by CSR.
@@ -357,8 +386,9 @@
            ;; "`#(,@bar)" ; invalid
            "`#(,@(bar))"
            "`#(a ,b c)"
-           "`#(a ,b . ,c)"
+           #+quasiquote-strict-append "`#(a ,b . ,c)"
            "`#(,@a ,b c)"
+           #+quasiquote-strict-append
            "`(,a . #(foo #() #(,bar) ,bar))"
            "(xlet ((foo (x))) `(xlet (,foo) (xsetq ,foo (y)) (baz ,foo)))"))))
 
