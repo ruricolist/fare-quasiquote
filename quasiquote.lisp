@@ -11,6 +11,7 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
 ;;;; uncomment some of the lines below to disable according simplifications:
+;;(pushnew :quasiquote-lax-append *features*)
 ;;(pushnew :quasiquote-passes-literals *features*)
 ;;(pushnew :quasiquote-at-macro-expansion-time *features*)
 
@@ -52,18 +53,10 @@
 (defun k-append-p (x) (and (consp x) (eq (car x) 'append)))
 (defun k-nconc (&rest r) (cons 'nconc r))
 (defun k-nconc-p (x) (and (consp x) (eq (car x) 'nconc)))
-(make-single-arg-form make-vector k-make-vector)
-(defun k-n-vector (n l) (list 'n-vector n l))
-(defun k-n-vector-p (x) (and (consp x) (eq (first x) 'n-vector)))
-;; (length=n-p x 3) (typep (second x) '(or null (integer 0 *)))
 
 (defun k-literal (literal)
   #+quasiquote-passes-literals literal
   #-quasiquote-passes-literals (kwote literal))
-(defun k-vector (list)
-  (#+quasiquote-at-macro-expansion-time kwote
-   #-quasiquote-at-macro-expansion-time k-literal
-   (make-vector list)))
 
 ;;; These macros expand into suitable forms
 (defmacro quote (x) (list 'cl:quote x))
@@ -78,6 +71,38 @@
   (declare (ignore x))
   (error "unquote-nsplicing disallowed outside quasiquote"))
 
+(defun quasiquote-form-p (x)
+  (or (quotep x) (k-list-p x) (k-list*-p x) (k-cons-p x) (k-append-p x) (k-nconc-p x) (k-n-vector-p x)))
+
+(defun k-n-vector (n l)
+  (cond
+    ((null l)
+     (k-literal (vector)))
+    ((quotep l)
+     (k-literal (n-vector n (single-arg l))))
+    (n
+     (list 'n-vector n l))
+    (t
+     (list 'make-vector l))))
+
+(defun k-n-vector-p (x) (and (consp x) (member (first x) '(make-vector n-vector))))
+
+(defun valid-k-n-vector-p (x)
+  (or (and (length=n-p x 3) (eq (first x) 'n-vector)
+           (typep (second x) `(or null (integer 0 ,array-rank-limit)))
+           (quasiquote-form-p (third x)))
+      (and (length=n-p x 2) (eq (first x) 'make-vector)
+           (quasiquote-form-p (second x)))))
+
+(defun k-n-vector-n (x)
+  (and (valid-k-n-vector-p x) (eq (first x) 'n-vector) (second x)))
+
+(defun k-n-vector-contents (x)
+  (and (valid-k-n-vector-p x)
+       (ecase (first x) ((make-vector) (second x)) ((n-vector) (third x)))))
+
+(defun properly-ended-list-p (x)
+  (and (listp x) (null (cdr (last x)))))
 
 (defparameter *quasiquote-level* 0
   "current depth of quasiquote nesting")
@@ -113,13 +138,10 @@ When combining backquoted expressions, tokens are used for simplifications."
     (values 'unquote-nsplicing (single-arg x)))
    ((unquotep x)
     (values 'unquote (single-arg x)))
-   #+quasiquote-at-macro-expansion-time
    ((quasiquotep x)
     (quasiquote-expand-0 (quasiquote-expand (single-arg x))))
-   ((make-vector-p x)
-    (values 'make-vector (cdr x)))
    ((k-n-vector-p x)
-    (values 'n-vector (cdr x)))
+    (values (car x) (cdr x)))
    ((consp x)
     (multiple-value-bind (atop a) (quasiquote-expand-0 (car x))
       (multiple-value-bind (dtop d) (quasiquote-expand-0 (cdr x))
@@ -129,23 +151,29 @@ When combining backquoted expressions, tokens are used for simplifications."
           (error ",. after dot"))
         (cond
           ((eq atop 'unquote-splicing)
-           (if (null dtop)
-               (if (unquote-xsplicing-p a)
-                   (values 'append (list a))
-                   (expand-unquote a))
-               (values 'append
-                       (cond ((eq dtop 'append)
-                              (cons a d))
-                             (t (list a (quasiquote-expand-1 dtop d)))))))
+           (cond
+             #+quasiquote-lax-append
+             ((null dtop)
+              (if (unquote-xsplicing-p a)
+                  (values 'append (list a))
+                  (expand-unquote a)))
+             (t
+              (values 'append
+                      (cond ((eq dtop 'append)
+                             (cons a d))
+                            (t (list a (quasiquote-expand-1 dtop d))))))))
           ((eq atop 'unquote-nsplicing)
-           (if (null dtop)
-               (if (unquote-xsplicing-p a)
-                   (values 'nconc (list a))
-                   (expand-unquote a))
-               (values 'nconc
-                       (cond ((eq dtop 'nconc)
-                              (cons a d))
-                             (t (list a (quasiquote-expand-1 dtop d)))))))
+           (cond
+             #+quasiquote-lax-append
+             ((null dtop)
+              (if (unquote-nsplicing-p a)
+                  (values 'nconc (list a))
+                  (expand-unquote a)))
+             (t
+              (values 'nconc
+                      (cond ((eq dtop 'nconc)
+                             (cons a d))
+                            (t (list a (quasiquote-expand-1 dtop d))))))))
           ((null dtop)
            (if (member atop '(quote :literal nil))
                (values 'quote (list a))
@@ -154,9 +182,13 @@ When combining backquoted expressions, tokens are used for simplifications."
            (cond
              ((member atop '(quote :literal nil))
               (values 'quote (cons a d)))
-             ((and (eq dtop 'quote) (consp d) (null (cdr (last d))))
+             ;; This should be done more cautiously.
+             ;; Can we detect the case "has no (recursive) quasiquote escapes"?
+             ;; Or is 'quote already that?
+             #|
+             ((and (consp d) (null (cdr (last d))))
               (values 'list (list* (quasiquote-expand-1 atop a)
-                                   (mapcar 'kwote d))))
+                                   (mapcar 'kwote d)))) |#
              (t
               (values 'list* (list (quasiquote-expand-1 atop a)
                                    (quasiquote-expand-1 dtop d))))))
@@ -195,25 +227,26 @@ of the result of the top operation applied to the expression"
      x)
     ((eq top 'quote)
      (kwote x))
-    ((eq top 'list*)
-     (cond ((and (null (cddr x))
-                 (not (unquote-xsplicing-p (car x)))
-                 (not (unquote-xsplicing-p (cadr x))))
-            (k-cons (car x) (cadr x)))
-           ((unquote-xsplicing-p (car (last x)))
-            (k-append
-             (quasiquote-expand-1 'list (butlast x))
-             (car (last x))))
-           (t
-            (apply 'k-list* x))))
+    ((member top '(cons list*))
+     (cond
+       #+quasiquote-lax-append
+       ((length=n-p x 1) x)
+       ((let ((last (last x)))
+          (when (or (null last) (and (consp last) (quotep (car last))
+                                     (properly-ended-list-p (single-arg (car last)))))
+            (quasiquote-expand-1 'list (append (butlast x)
+                                               (mapcar 'kwote (and last (single-arg (car last)))))))))
+       ((length=n-p x 2)
+        (apply 'k-cons x))
+       ((unquote-xsplicing-p (car (last x)))
+        (k-append
+         (quasiquote-expand-1 'list (butlast x))
+         (car (last x))))
+       (t
+        (apply 'k-list* x))))
     (t
      (cons (ecase top
-             ((list) 'list)
-             ((cons) 'cons)
-             ((append) 'append)
-             ((nconc) 'nconc)
-             ((make-vector) 'make-vector)
-             ((n-vector) 'n-vector))
+             ((list cons append nconc make-vector n-vector) top))
            x))))
 
 ;; Note: it would be a *very bad* idea to use quasiquote:quote
@@ -252,12 +285,12 @@ of the result of the top operation applied to the expression"
 
 (defun read-vector (stream n)
   ;; http://www.lisp.org/HyperSpec/Body/sec_2-4-8-3.html
-  (let ((contents (read-delimited-list #\) stream t)))
-    (if (> *quasiquote-level* 0)
-        (if n
-            (make-unquote (k-n-vector n (quasiquote-expand contents)))
-            (make-unquote (k-make-vector (quasiquote-expand contents))))
-	(n-vector n contents))))
+  (if (= *quasiquote-level* 0)
+      (n-vector n (read-delimited-list #\) stream t))
+      (make-unquote
+       (k-n-vector n (quasiquote-expand
+                      (progn (unread-char #\( stream)
+                             (read-preserving-whitespace stream t nil t)))))))
 
 (defun read-read-time-backquote (stream char)
   (declare (ignore char))

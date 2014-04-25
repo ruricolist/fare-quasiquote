@@ -137,6 +137,14 @@ Known Issues
  But what when quasiquote breaks up that identity?
  Our answer is that it means something at vector-creation-time.
 
+* The CLHS section 2.4.6 says that `(x1 x2 ... xn . atom) is same as
+ (append [ x1] [ x2] [ x3] ... [ xn] (quote atom)) -- mind that the atom is preserved.
+ This means that you can't simplify `(a b ,@c) to `(a b . ,c)
+ unless you know that c is a proper list (if it isn't, that's an error),
+ despite the fact that the CLHS itself suggests the simplification.
+ That's somewhat problematic for using ,@ in the matcher as promised.
+ The simplification is enabled is #+quasiquote-lax-append is enabled.
+
 
 Meta Unquote Protocol (not implemented)
 ---------------------------------------

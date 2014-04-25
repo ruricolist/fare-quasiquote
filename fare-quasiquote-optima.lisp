@@ -25,7 +25,7 @@
 (defstruct (quasiquote-vector-pattern (:include optima::constructor-pattern)
                                       (:constructor make-quasiquote-vector-pattern
                                           (content-pattern
-                                           &aux (subpatterns (list content-pattern))))))
+                                           &aux (optima::subpatterns (list content-pattern))))))
 
 (defmethod optima::constructor-pattern-destructor-sharable-p
     ((x quasiquote-vector-pattern) (y quasiquote-vector-pattern))
