@@ -234,6 +234,9 @@
   (signals error (rq "`(foo bar #.(max 5 ,*print-base*))"))
   ;; From the exscribe tests
   (is (equal (pq (eval (rq "``(f ,@,@*k)"))) "`(f ,@(common-lisp:list :x x) ,@(common-lisp:list :y y))"))
+  ;; From James M. Lawrence <llmjjmll@gmail.com>
+  (loop for x in '("(x)" "`(,x)" "``(,,x)" "```(,,,x)") do
+    (is (equal (prq x) x)))
   t)
 
 ;;; Double-quasiquote test from the SBCL test suite backq.impure.lisp

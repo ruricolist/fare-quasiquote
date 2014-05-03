@@ -202,9 +202,9 @@ The principle of the MUP is that:
  * structure readers #C(ARGSYNTAX) that do want to support unquote
   MUST accumulate formal arguments to a structure constructor
   into a list ARGUMENTS, then, if *quasiquote-level* is 0, behave like
-  #.(apply `#CONSTRUCTOR `#ARGUMENTS)
+    #.(apply `#CONSTRUCTOR `#ARGUMENTS)
   otherwise, behave like
-  ,(apply `#CONSTRUCTOR `#ARGUMENTS)
+    ,(apply `#CONSTRUCTOR `#ARGUMENTS)
   where #CONSTRUCTOR is the name of the constructor for given structure,
   and #ARGUMENTS is whichever arguments have been deduced from the syntax,
   which may include as many levels of unquotations as *quasiquote-level* says.
