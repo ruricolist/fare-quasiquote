@@ -322,6 +322,12 @@ of the result of the top operation applied to the expression"
   (declare (ignore subchar))
   (read-vector stream arg))
 
+(defvar *hash-dot-reader* (get-dispatch-macro-character #\# #\.))
+
+(defun read-hash-dot (stream subchar arg)
+  (let ((*quasiquote-level* 0))
+    (funcall *hash-dot-reader* stream subchar arg)))
+
 (defun enable-quasiquote (&key expansion-time (table *readtable*))
   ;; Note that it is *NOT* OK to enable-quasiquote in the initial readtable,
   ;; as this violates the build contract (see ASDF 3.1 documentation about readtables).
@@ -331,6 +337,7 @@ of the result of the top operation applied to the expression"
   (set-macro-character #\` (backquote-reader expansion-time) nil table)
   (set-macro-character #\, #'read-comma nil table)
   (set-dispatch-macro-character #\# #\( #'read-hash-paren table)
+  (set-dispatch-macro-character #\# #\. #'read-hash-dot table)
   t)
 
 (defvar *fq-readtable* (let ((x (copy-readtable nil))) (enable-quasiquote :table x) x))
