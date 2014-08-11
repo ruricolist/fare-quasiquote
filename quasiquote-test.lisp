@@ -238,6 +238,7 @@
   (loop for x in '("(x)" "`(,x)" "``(,,x)" "```(,,,x)") do
     (is (equal (prq x) x)))
   (is (equal (prq "`#.#(1 2 3)") "`#(1 2 3)")) ;; #. must reset the quasiquote level.
+  (signals error (rq "`(foo bar #.(max 5 ,*print-base*))"))
   t)
 
 ;;; Double-quasiquote test from the SBCL test suite backq.impure.lisp
