@@ -276,7 +276,8 @@
     (is (equal (eval (eval (rq expression))) value)))
   t)
 
-#| ;;; This test from dougk's 2014 patch to sbcl's backquote doesn't pass with strict append semantics
+;;; This test is from dougk's 2014 patch to sbcl's backquote
+#-(or quasiquote-strict-append quasiquote-passes-literals quasiquote-at-macro-expansion-time)
 (deftest test-nested-backquote-readable-bogosity ()
   (eval (rq "(defmacro broken-macro (more-bindings)
                 `(macrolet ((with-bindings (&body body)
@@ -310,7 +311,6 @@
            `(let ((thing1 :something) ,(cl:quote . frob)) ,@body)))
           (with-bindings (thing)))"
        '(broken-macro frob))))
-|#
 
 (deftest preserving-inner-backquotes ()
   (flet ((e (s v)
@@ -371,6 +371,7 @@
              #+quasiquote-strict-append "`(foo ,.x)"))
   (is (equal (prq "`(foo (,x))") "`(foo (,x))")))
 
+;;;; One more test from the SBCL test suite:
 ;;; more backquote printing brokenness, fixed quasi-randomly by CSR.
 ;;; NOTE KLUDGE FIXME: because our backquote optimizes at read-time,
 ;;; these assertions, like the ones above, are fragile.  Likewise, it

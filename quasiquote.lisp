@@ -14,7 +14,9 @@
 ;;(pushnew :quasiquote-strict-append *features*)
 ;;(pushnew :quasiquote-passes-literals *features*)
 ;;(pushnew :quasiquote-at-macro-expansion-time *features*)
+)
 
+(eval-when (:compile-toplevel :load-toplevel :execute)
 ;;; Functions that actually build data structures.
 ;; Note that we want our own tokens for decompilation reasons,
 ;; but as functions they must evaluate the usual way.
