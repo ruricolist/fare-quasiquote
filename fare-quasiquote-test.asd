@@ -1,6 +1,10 @@
+;;; -*- Lisp -*-
 
 (defsystem "fare-quasiquote-test"
-  #+asdf3 :version #+asdf3 (:read-file-line "version.text")
+  :description "Tests for fare-quasiquote"
+  :version (:read-file-line "version.text")
+  :license "MIT"
+  :author "Francois-Rene Rideau"
   :depends-on ("fare-quasiquote-extras" "hu.dwim.stefil")
   :components ((:file "quasiquote-test"))
   :perform (test-op (o c)

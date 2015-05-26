@@ -1,6 +1,10 @@
+;;; -*- Lisp -*-
+#-asdf3 (error "fare-quasiquote requires ASDF 3")
 
 (defsystem "fare-quasiquote-extras"
-  #+asdf3 :version #+asdf3 (:read-file-line "version.text")
   :description "fare-quasiquote plus extras"
-  ;; not including deprecated fare-matcher anymore
+  :version (:read-file-line "version.text")
+  :license "MIT"
+  :author "Francois-Rene Rideau"
+  ;; NB: not including deprecated fare-matcher anymore
   :depends-on ("fare-quasiquote-optima" "fare-quasiquote-readtable"))
