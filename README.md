@@ -52,7 +52,7 @@ The `fare-quasiquote` system is a reimplementation of quasiquote
 with two advantages:
 
 *   first it has all the bugs straightened out, including dark corner cases
-    (some implementations still get the simple `\`\`(foo ,@,@bar)` wrong);
+    (some implementations still get the simple ````(foo ,@,@bar)`` wrong);
 
 *   second, it expands into a stable format that allows for pattern matching,
     by privileging `list` before `cons` before `list*` before `append`
@@ -150,7 +150,7 @@ Known Issues
 
 *   This implementation allows for simplifying quasiquoting of literals
     and other self-evaluating objects into the object itself,
-    instead of a `\`(quote ,object)` expression,
+    instead of a ```(quote ,object)`` expression,
     if you enable the `#+quasiquote-passes-literals` feature.
     This is the behaviour of the simplifier in CMUCL and SBCL,
     but some people have expressed concerns that it might not be
@@ -166,17 +166,17 @@ Known Issues
 	<http://groups.google.com/groups?q=author:kaz%40ashi.footprints.net&hl=en&lr=&ie=UTF-8&oe=UTF-8&safe=off&selm=cf333042.0303141409.bbf02e9%40posting.google.com&rnum=4>
 
 *   Interestingly, I haven't seen the following problem stated, to know which is
-    correct of `\`#5(1 ,@'(2 3))`. In other words, does the read argument
+    correct of ```#5(1 ,@'(2 3))``. In other words, does the read argument
     to `#()` mean something at read-time or at vector-creation-time?
     Of course, in the original intended usage, outside of any quasiquoting,
     read-time and vector-creation-time are one and the same.
     But what when quasiquote breaks up that identity?
     Our answer is that it means something at vector-creation-time.
 
-*   The CLHS section 2.4.6 says that `\`(x1 x2 ... xn . atom)`
+*   The CLHS section 2.4.6 says that ```(x1 x2 ... xn . atom)``
     is same as `(append [x1] [x2] [x3] ... [xn] (quote atom))`
     --- mind that the atom is preserved. This means that
-    you can't conformantly simplify `\`(a b ,@c)` to `\`(a b . ,c)`
+    you can't conformantly simplify ```(a b ,@c)`` to ```(a b . ,c)``
     unless you know that `c` is a proper list (if it isn't, that's an error).
     Yet, the CLHS itself suggests the simplification, and
     all implementations tested agree that a final `(quote nil)` can be elided:
@@ -188,13 +188,13 @@ Known Issues
                 2>&1 | grep "^$l:" # LW, GCL are verbose
         done
 
-    yet at the same time, SBCL still complains about `\`(,@1)`.
+    yet at the same time, SBCL still complains about ```(,@1)``.
     `fare-quasiquote` follows the consensus,
     unless `#+quasiquote-strict-append` is enabled.
 
 *   The current implementation of fare-quasiquote tends to simplify away things
-    like `\`,c` to `c` and, without `#+quasiquote-strict-append`,
-    also `\`(,@c)` to `c`.
+    like ````,c``` to `c` and, without `#+quasiquote-strict-append`,
+    also ```(,@c)`` to `c`.
     These simplifications probably need to be somehow prevented by default.
     Maybe with various kinds of (identity) wrappers
     to indicate quoting-unquoting?
