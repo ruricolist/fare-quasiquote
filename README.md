@@ -60,6 +60,7 @@ with two advantages:
 
 When using `fare-quasiquote-optima`, expressions parsed by `fare-quasiquote`
 can be used as pattern matching patterns with `optima`.
+`trivia` also supports `fare-quasiquote`.
 
 We recommend you use `named-readtables` to enable
 at the beginning and end of your Lisp files,
@@ -67,8 +68,9 @@ or around their compilation (e.g. using ASDF around-compile hooks).
 Note however that it is important not to let such `readtables` leak into
 the compilation of files that do not depend on `fare-quasiquote`.
 
-Note that since `optima` doesn't support backtracking,
-it cannot match `append` patterns, and those quasiquote templates that
+Note that since pattern matchers like `optima` and `trivia` do not support
+backtracking (unlike say an embedded logic programming language),
+they cannot match `append` patterns, and those quasiquote templates that
 expand into something using `append` can't be used as patterns to match.
 This means that the use of ,@ or ,. is restricted to the end of a list
 when used as a pattern.
@@ -85,14 +87,20 @@ References
 
 Essential documents consulted while implementing this file:
 
-*   [Alan Bawden's paper at PEPM 99](http://www.bawden.org/ftp/pepm99.ps.gz)
-*   [CLtL2](http://www.supelec.fr/docs/cltl/clm/node367.html)
-*   [CLHS](http://www.lisp.org/HyperSpec/Body/sec_2-4-6.html)
+*   [Alan Bawden's PEPM 99 paper: Quasiquotation in Lisp](repository.readscheme.org/ftp/papers/pepm99/bawden.pdf)
+*   [The CLtL2 Appendix C: Backquote](https://www.cs.cmu.edu/Groups/AI/html/cltl/clm/node367.html)
+*   [The CLHS section 2.4.6: Backquote](http://www.lispworks.com/documentation/HyperSpec/Body/02_df.htm)
 *   [Slate reference manual section 2.6.2 on quoting and unquoting](http://slate.tunes.org/doc/progman/node12.html#SECTION00046200000000000000)
 *   Common Lisp backquote implementation, written in Common Lisp. (public domain)
      Author: Guy L. Steele Jr.     Date: 27 December 1985.
-     To be used with patch by Alex Plotnick 2010 regarding the simplification pass.
+     To be used with 2010 patch by Alex Plotnick regarding the simplification pass.
 *   SBCL backquote implementation (derived from CMUCL, used the October 2010 version).
+
+If you for whatever reason ever feel like reimplementing backquote,
+you should probably leverage the many tests in my test file
+[quasiquote-test.lisp](quasiquote-test.lisp) ---
+in addition to my own test cases, I notably included the tests from SBCL;
+they include regression tests for many actual bugs in subtle cases that you might otherwise miss.
 
 
 Read-time vs Macro-expansion-time
