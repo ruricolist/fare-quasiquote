@@ -61,7 +61,7 @@ The `fare-quasiquote` system is a reimplementation of quasiquote with two
 advantages:
 
 *   first it has all the bugs straightened out, including dark corner cases
-    (some implementations still get the simple `` ``(foo ,@,@bar)`` wrong);
+    (some implementations still get the simple ``` ``(foo ,@,@bar)``` wrong);
 
 *   second, it expands into a stable format that allows for pattern matching, by
     privileging `list` before `cons` before `list*` before `append` before
