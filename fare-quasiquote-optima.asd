@@ -6,5 +6,4 @@
   :version (:read-file-line "version.text")
   :license "MIT"
   :author "Francois-Rene Rideau"
-  :depends-on ("fare-quasiquote" (:version "optima" "1.0"))
-  :components ((:file "fare-quasiquote-optima")))
+  :depends-on ("trivia.quasiquote"))
