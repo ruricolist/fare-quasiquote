@@ -1,15 +1,14 @@
 fare-quasiquote — a pattern-matching friendly implementation of Quasiquote
 ==========================================================================
 
-Copyright ⓒ 2002-2016 Fahree Reedaw <fare@tunes.org>
+Copyright ⓒ 2002-2020 Fahree Reedaw <fare@tunes.org>
 
 
 Purpose
 -------
 
 The main purpose of this n+2nd reimplementation of quasiquote, is enable
-matching of quasiquoted patterns, using [OPTIMA](https://github.com/m2ym/optima)
-or [TRIVIA](https://github.com/guicho271828/trivia).
+matching of quasiquoted patterns, using [trivia](https://github.com/guicho271828/trivia).
 
 Now, developing this implementation was also a challenge in understanding the
 ins and outs of quasiquotation, and in exploring the way it interacts with
@@ -27,10 +26,10 @@ depend on `fare-quasiquote-extras`, and at the start your file, use:
 (named-readtables:in-readtable :fare-quasiquote)
 ```
 
-Then you can match expressions using `optima:match`, such as:
+Then you can match expressions using `trivia:match`, such as:
 
 ```
-(optima:match '(1 (2 3) 4 5)
+(trivia:match '(1 (2 3) 4 5)
   (`(a (b ,c) ,@d) (list a b c d)))
 
 ; => (1 2 3 (4 5))
@@ -45,7 +44,7 @@ You can also at the SLIME REPL use:
 
 However, beware to not leak `fare-quasiquote` into systems you load
 that do not `:depends-on ("fare-quasiquote")`;
-and so until ASDF is fixed to do that for you (hopefully by ASDF 3.3),
+and so until ASDF is fixed to do that for you (hopefully some day in the ASDF 3.x series),
 before you call `(asdf:load-system ...)`, you need to restore
 the default `*readtable*` with, e.g.:
 
@@ -67,26 +66,29 @@ advantages:
   privileging `list` before `cons` before `list*` before `append` before `nconc`
   (and by the way, you should never, ever, use `nconc`).
 
-When using `fare-quasiquote-optima`, expressions parsed by `fare-quasiquote` can
-be used as pattern matching patterns with `optima`. `trivia` also supports
-`fare-quasiquote`.
+When using `trivia.quasiquote`, expressions parsed by `fare-quasiquote` can
+be used as pattern matching patterns with `trivia`.
+`trivia`'s predecessors [optima](https://github.com/m2ym/optima) and
+[fare-matcher](https://cliki.net/fare-matcher) used to be supported,
+but both have long been deprecated.
 
 We recommend you use `named-readtables` to enable at the beginning and end of
 your Lisp files, or around their compilation (e.g. using ASDF around-compile
 hooks). Note however that it is important not to let such `readtables` leak into
 the compilation of files that do not depend on `fare-quasiquote`.
 
-Note that since pattern matchers like `optima` and `trivia` do not support
-backtracking (unlike say an embedded logic programming language), they cannot
-match `append` patterns, and those quasiquote templates that expand into
+Note that since pattern matchers like `trivia` do not support
+backtracking (unlike say an embedded logic programming language),
+they cannot match `append` patterns, and those quasiquote templates that expand into
 something using `append` can't be used as patterns to match. This means that the
 use of `,@` or `,.` is restricted to the end of a list when used as a pattern.
 
 `fare-quasiquote` was originally written to work with `fare-matcher`, and legacy
 support for `fare-matcher` is available in `fare-quasiquote-matcher`, now
-distributed with `fare-matcher` itself. But `fare-matcher` is deprecated.
-`optima` supersedes `fare-matcher`, and `fare-quasiquote-optima` supersedes
-`fare-quasiquote-matcher`.
+distributed with `fare-matcher` itself.
+But `fare-matcher` was deprecated in favor of `optima`,
+that that was deprecated in favor of `trivia`.
+Use `trivia.quasiquote` to match patterns written using `fare-quasiquote`.
 
 
 References
@@ -94,10 +96,11 @@ References
 
 Essential documents consulted while implementing this file:
 
-* [Alan Bawden's PEPM 99 paper: Quasiquotation in Lisp](http://repository.readscheme.org/ftp/papers/pepm99/bawden.pdf)
+* [Alan Bawden's PEPM 99 paper: Quasiquotation in Lisp](https://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.22.1290)
 * [The CLtL2 Appendix C: Backquote](https://www.cs.cmu.edu/Groups/AI/html/cltl/clm/node367.html)
 * [The CLHS section 2.4.6: Backquote](http://www.lispworks.com/documentation/HyperSpec/Body/02_df.htm)
 * [Slate reference manual section 2.6.2 on quoting and unquoting](http://slate.tunes.org/doc/progman/node12.html#SECTION00046200000000000000)
+* [Factor handbook on *fried quotations*](https://docs.factorcode.org/content/article-fry.html)
 * Common Lisp backquote implementation, written in Common Lisp. (public domain)
   Author: Guy L. Steele Jr. Date: 27 December 1985. To be used with 2010 patch
   by Alex Plotnick regarding the simplification pass.
