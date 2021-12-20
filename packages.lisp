@@ -15,3 +15,7 @@
            #:call-with-unquote-reader
            #:call-with-unquote-splicing-reader
            #:call-with-unquote-nsplicing-reader))
+
+(uiop:define-package #:fare-quasiquote-extras
+  (:documentation "Package for package inferred systems to depend on.")
+  (:use-reexport #:fare-quasiquote))
